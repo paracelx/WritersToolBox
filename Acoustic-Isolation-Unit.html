@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acoustic Isolation Unit v4.1</title>
+    <style>
+        body { 
+            font-family: 'Courier New', Courier, monospace; 
+            max-width: 860px; 
+            margin: 2rem auto; 
+            padding: 0 1rem; 
+            background-color: #050505; 
+            color: #ffb000; 
+            text-shadow: 0 0 5px rgba(255, 176, 0, 0.3);
+        }
+        h2 { margin-bottom: 5px; color: #ffb000; text-align: center; }
+        .credit-line { font-size: 0.8em; color: #888; padding-bottom: 15px; border-bottom: 1px solid #333; margin-bottom: 25px; text-align: center; }
+        .credit-line a { color: #ffb000; text-decoration: none; }
+        .credit-line a:hover { text-decoration: underline; }
+        
+        .panel { 
+            background: #0a0a0a; 
+            padding: 25px; 
+            border-radius: 6px; 
+            border: 2px solid #ffb000; 
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+        }
+        .panel h3 { margin-top: 0; color: #ffb000; border-bottom: 1px solid #333; padding-bottom: 10px; font-size: 1.05em; text-transform: uppercase; letter-spacing: 1px; }
+
+        canvas#oscilloscope {
+            width: 100%;
+            height: 120px;
+            background-color: #000;
+            border: 1px solid #ffb000;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .category-title {
+            font-size: 0.8em;
+            color: #ffb000;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 15px 0 8px 0;
+            border-left: 3px solid #ffb000;
+            padding-left: 8px;
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .preset-btn {
+            background: #1a1500;
+            border: 1px solid #ffb000;
+            color: #ffb000;
+            padding: 8px;
+            font-family: inherit;
+            font-size: 0.78em;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            border-radius: 4px;
+            transition: 0.2s;
+        }
+        .preset-btn:hover { background: #ffb000; color: #000; }
+
+        .custom-presets-bar {
+            background: #111;
+            border: 1px solid #ffb000;
+            border-radius: 4px;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .custom-presets-bar span { font-size: 0.8em; font-weight: bold; text-transform: uppercase; }
+        select.preset-dropdown {
+            background: #000;
+            border: 1px solid #ffb000;
+            color: #ffb000;
+            padding: 6px 10px;
+            font-family: inherit;
+            font-size: 0.8em;
+            border-radius: 4px;
+            flex: 1;
+            min-width: 180px;
+            cursor: pointer;
+        }
+        .btn-small {
+            background: #222;
+            border: 1px solid #ffb000;
+            color: #ffb000;
+            padding: 6px 12px;
+            font-family: inherit;
+            font-size: 0.75em;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: 0.2s;
+        }
+        .btn-small:hover { background: #ffb000; color: #000; }
+        .btn-delete:hover { background: #f44336; border-color: #f44336; color: #fff; }
+
+        .sound-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .sound-card {
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .sound-card.active { border-color: #4CAF50; }
+        .sound-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sound-btn {
+            background: #181818;
+            border: 1px solid #ffb000;
+            color: #ffb000;
+            padding: 6px 10px;
+            font-family: inherit;
+            font-size: 0.78em;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            border-radius: 4px;
+            transition: 0.2s;
+            flex: 1;
+            text-align: left;
+        }
+        .sound-btn:hover { background: #ffb000; color: #000; }
+        .sound-btn.active { background: #4CAF50; border-color: #4CAF50; color: #fff; text-shadow: none; }
+
+        .layer-vol-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .layer-vol-label { font-size: 0.7em; color: #888; width: 45px; }
+        .layer-vol-slider {
+            flex: 1;
+            accent-color: #4CAF50;
+            height: 4px;
+        }
+
+        .slider-group {
+            background: #111;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #333;
+            margin-bottom: 15px;
+        }
+        .slider-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .slider-row span { font-size: 0.85em; color: #ccc; }
+        label { font-size: 0.85em; font-weight: bold; color: #aaa; display: block; margin-top: 15px; margin-bottom: 5px; text-transform: uppercase; }
+        
+        input[type="range"] {
+            width: 100%;
+            accent-color: #ffb000;
+            cursor: pointer;
+            background: #222;
+        }
+
+        .custom-binaural-box {
+            background: #111;
+            border: 1px solid #ffb000;
+            border-radius: 4px;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .custom-binaural-box input[type="number"] {
+            background: #000;
+            border: 1px solid #ffb000;
+            color: #ffb000;
+            padding: 5px 8px;
+            font-family: inherit;
+            font-size: 0.85em;
+            width: 80px;
+            border-radius: 4px;
+        }
+
+        .master-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        button.action-btn {
+            flex: 1;
+            min-width: 180px;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 0.88em;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: 0.2s;
+        }
+        .btn-toggle { background: #4CAF50; border: 1px solid #4CAF50; color: white; }
+        .btn-toggle:hover { background: #388E3C; }
+        .btn-toggle.playing { background: #f44336; border-color: #f44336; }
+        .btn-toggle.playing:hover { background: #d32f2f; }
+        
+        .btn-share { background: #222; border: 1px solid #ffb000; color: #ffb000; }
+        .btn-share:hover { background: #ffb000; color: #000; }
+
+        .status-display {
+            text-align: center;
+            font-size: 0.85em;
+            color: #7289da;
+            margin-top: 15px;
+            letter-spacing: 1px;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Acoustic Isolation Unit v4.1</h2>
+    <div class="credit-line">
+        Created by D.W. Garrett | <a href="mailto:dwgarrett.creative@outlook.com">dwgarrett.creative@outlook.com</a>[cite: 1]
+    </div>
+
+    <div class="panel">
+        <canvas id="oscilloscope"></canvas>
+
+        <h3>Factory Presets</h3>
+        <div class="preset-grid">
+            <button class="preset-btn" onclick="loadPreset('cosmic-horror')">👁️ Cosmic Horror Session</button>
+            <button class="preset-btn" onclick="loadPreset('deep-worldbuilding')">📜 Deep Worldbuilding</button>
+            <button class="preset-btn" onclick="loadPreset('action-drafting')">⚔️ Action Drafting</button>
+            <button class="preset-btn" onclick="loadPreset('lucid-astral')">🌌 Lucid / Astral State</button>
+            <button class="preset-btn" onclick="loadPreset('verbal-fluency')">✍️ Verbal Fluency Flow</button>
+            <button class="preset-btn" onclick="loadPreset('psychotic-dread')">🔪 Endless Escalation</button>
+            <button class="preset-btn" onclick="loadPreset('dies-irae-funeral')">⚰️ Dies Irae Doom</button>
+            <button class="preset-btn" onclick="loadPreset('dread-infrasound')">⚠️ Sub-Audible Dread</button>
+            <button class="preset-btn" onclick="loadPreset('astral-projection')">🧘 Astral Gateway</button>
+            <button class="preset-btn" onclick="loadPreset('hyper-focus')">⚡ Hyper-Focus Scriptorium</button>
+            <button class="preset-btn" onclick="loadPreset('catatonic-despair')">🌑 Sub-Bunker Despair</button>
+            <button class="preset-btn" onclick="loadPreset('occult-transcendence')">🔮 Eldritch Resonance</button>
+        </div>
+
+        <div class="custom-presets-bar">
+            <span>💾 Memory Presets:</span>
+            <select id="user-presets-select" class="preset-dropdown">
+                <option value="">-- Select Saved Preset --</option>
+            </select>
+            <button class="btn-small" onclick="loadSelectedCustomPreset()">LOAD</button>
+            <button class="btn-small btn-delete" onclick="deleteSelectedCustomPreset()">DELETE</button>
+        </div>
+
+        <h3>Precision Custom Binaural Engine</h3>
+        <div class="custom-binaural-box">
+            <span>Carrier (Hz):</span>
+            <input type="number" id="custom-carrier" min="40" max="1000" value="200" onchange="updateCustomBinauralParams()">
+            <span>Beat Offset (Hz):</span>
+            <input type="number" id="custom-beat" min="0.1" max="50" step="0.1" value="7.83" onchange="updateCustomBinauralParams()">
+        </div>
+
+        <h3>Multi-Layer Sound & Frequency Matrix</h3>
+
+        <div class="category-title">✍️ Creative Writing & Focus</div>
+        <div class="sound-grid" id="grid-writing"></div>
+
+        <div class="category-title">🧠 Mind Expansion & Alignment</div>
+        <div class="sound-grid" id="grid-mind"></div>
+
+        <div class="category-title">🌌 Astral Travel & Consciousness States</div>
+        <div class="sound-grid" id="grid-astral"></div>
+
+        <div class="category-title">🎃 Horror, Dread & Funeral Motifs</div>
+        <div class="sound-grid" id="grid-horror"></div>
+
+        <div class="category-title">🌧️ Ambient & Spectrum Noise Profiles</div>
+        <div class="sound-grid" id="grid-ambient"></div>
+
+        <div class="slider-group">
+            <div class="slider-row">
+                <span>Master Volume</span>
+                <span id="vol-val">60%</span>
+            </div>
+            <input type="range" id="vol-slider" min="0" max="100" value="60" oninput="updateVolume()">
+
+            <label style="margin-top: 15px;">Subterranean Depth Filter (Stone Wall Cutoff)</label>
+            <div class="slider-row" style="margin-top: 5px;">
+                <span id="filter-val">1200 Hz (Stone Tunnel)</span>
+            </div>
+            <input type="range" id="filter-slider" min="150" max="6000" step="50" value="1200" oninput="updateFilter()">
+
+            <label style="margin-top: 15px;">Micro-Jitter Modulation (Pitch/Tape Flutter)</label>
+            <div class="slider-row" style="margin-top: 5px;">
+                <span id="jitter-val">0.0 Hz (Static Pure Tones)</span>
+            </div>
+            <input type="range" id="jitter-slider" min="0" max="5" step="0.1" value="0" oninput="updateJitter()">
+
+            <label style="margin-top: 15px;">Spatial Panning Sweeper Rate</label>
+            <div class="slider-row" style="margin-top: 5px;">
+                <span id="pan-rate-val">0.05 Hz (Slow Drift)</span>
+            </div>
+            <input type="range" id="pan-rate-slider" min="0.01" max="0.5" step="0.01" value="0.05" oninput="updatePanRate()">
+        </div>
+
+        <div class="slider-group">
+            <div class="slider-row">
+                <span>Auto-Stop Timer (Minutes: <span id="timer-val">OFF</span>)</span>
+            </div>
+            <input type="range" id="timer-slider" min="0" max="120" step="5" value="0" oninput="updateTimerSetting()">
+        </div>
+
+        <div class="master-controls">
+            <button class="action-btn btn-toggle" id="toggle-btn" onclick="toggleAudioStream()">ENGAGE GENERATOR</button>
+            <button class="action-btn btn-share" onclick="copySessionURL()">COPY CONFIG LINK</button>
+            <button class="action-btn btn-share" onclick="saveCustomPreset()">SAVE CUSTOM PRESET</button>
+            <button class="action-btn btn-share" onclick="exportOfflineWAV()">EXPORT WAV FILE</button>
+        </div>
+
+        <div class="status-display" id="status-display">STATUS: STANDBY</div>
+    </div>
+
+    <script>
+        const SOUND_DEFINITIONS = [
+            { id: 'alpha-mid', name: 'Mid-Alpha (10 Hz Verbal)', cat: 'writing' },
+            { id: 'theta-waves', name: 'Theta (6 Hz Insight)', cat: 'writing' },
+            { id: 'gamma-focus', name: 'Gamma (40 Hz Flow)', cat: 'writing' },
+            { id: 'beta-action', name: 'Beta (20 Hz Concentration)', cat: 'writing' },
+            { id: 'custom-binaural', name: 'Precision Custom Binaural Node', cat: 'writing' },
+            { id: 'harm-432', name: '432 Hz Earth Tone', cat: 'mind' },
+            { id: 'solfeggio-528', name: '528 Hz Clarity Tones', cat: 'mind' },
+            { id: 'solfeggio-852', name: '852 Hz Intuition', cat: 'mind' },
+            { id: 'solfeggio-963', name: '963 Hz Higher Vision', cat: 'mind' },
+            { id: 'schumann-783', name: '7.83 Hz Schumann Pulse', cat: 'mind' },
+            { id: 'archaeo-111', name: '111 Hz Megalithic Resonance', cat: 'mind' },
+            { id: 'astral-border', name: 'Delta-Theta Border (4 Hz)', cat: 'astral' },
+            { id: 'astral-theta', name: 'Astral Theta (7 Hz)', cat: 'astral' },
+            { id: 'iso-pulse', name: '4 Hz Isochronic Breathing Pulse', cat: 'astral' },
+            { id: 'epsilon-1p5', name: '1.5 Hz Epsilon Trance Beat', cat: 'astral' },
+            { id: 'infrasound-7', name: '7 Hz Visceral Chest Organ Pressure', cat: 'horror' },
+            { id: 'infrasound-18', name: '18 Hz Cortisol Dread Infrasound', cat: 'horror' },
+            { id: 'infrasound-19', name: '19 Hz Eyeball Infrasound', cat: 'horror' },
+            { id: 'sub-rumble-100', name: '100 Hz Sub-Vault Distress Rumble', cat: 'horror' },
+            { id: 'microtonal-friction', name: 'Microtonal Beating Friction', cat: 'horror' },
+            { id: 'dissonant-beating', name: 'Dissonant Drifting Beat', cat: 'horror' },
+            { id: 'tritone-interval', name: "Tritone Dissonance (Devil's)", cat: 'horror' },
+            { id: 'psycho-chord', name: 'Psycho Cluster Chord', cat: 'horror' },
+            { id: 'shepard-illusion', name: 'Shepard Scale Escalation', cat: 'horror' },
+            { id: 'nonlinear-spike', name: 'Nonlinear Screech Spikes', cat: 'horror' },
+            { id: 'dropped-tuning-drone', name: 'Dropped A Doom Drone', cat: 'horror' },
+            { id: 'dies-irae-chant', name: 'Dies Irae Chant Drone', cat: 'horror' },
+            { id: 'tartini-ghost', name: 'Tartini Ghost Difference Tone', cat: 'horror' },
+            { id: 'rain-ambience', name: 'Rain Ambience', cat: 'ambient' },
+            { id: 'subterranean', name: 'Subterranean Vault', cat: 'ambient' },
+            { id: 'drips', name: 'Trench Drips', cat: 'ambient' },
+            { id: 'rain', name: 'Heavy Rain', cat: 'ambient' },
+            { id: 'brown', name: 'Deep Space', cat: 'ambient' },
+            { id: 'cave', name: 'Sub-Cave Resonance', cat: 'ambient' },
+            { id: 'cyber', name: 'Machine Hum', cat: 'ambient' },
+            { id: 'white', name: 'White Noise', cat: 'ambient' },
+            { id: 'pink', name: 'Tape Hiss', cat: 'ambient' },
+            { id: 'green', name: 'Green Forest Noise', cat: 'ambient' },
+            { id: 'grey', name: 'Grey Acoustic Noise', cat: 'ambient' },
+            { id: 'cosmic', name: 'Cosmic Static', cat: 'ambient' },
+            { id: 'wind', name: 'Solar Wind', cat: 'ambient' },
+            { id: 'flies-buzz', name: '🪰 Swarm of Flies / Insects', cat: 'horror' },
+			{ id: 'cricket-chirp', name: '🦗 Nocturnal Cicadas / Crickets', cat: 'ambient' },
+			{ id: 'owl-hoot', name: '🦉 Distant Nocturnal Owl Call', cat: 'horror' }
+        ];
+
+        let audioCtx = null;
+        let masterGain = null;
+        let masterFilter = null;
+        let analyserNode = null;
+        
+        let jitterLFO = null;
+        let jitterGain = null;
+
+        let activeLayers = {};
+        let selectedProfiles = new Map([['rain-ambience', 1.0]]);
+
+        let isPlaying = false;
+        let timerTimeout = null;
+        let timerInterval = null;
+        let secondsRemaining = 0;
+
+        function renderUI() {
+            SOUND_DEFINITIONS.forEach(snd => {
+                const targetGrid = document.getElementById(`grid-${snd.cat}`);
+                if (!targetGrid) return;
+
+                const card = document.createElement('div');
+                card.className = `sound-card ${selectedProfiles.has(snd.id) ? 'active' : ''}`;
+                card.id = `card-${snd.id}`;
+
+                const initialVol = selectedProfiles.has(snd.id) ? Math.round(selectedProfiles.get(snd.id) * 100) : 100;
+
+                card.innerHTML = `
+                    <div class="sound-card-header">
+                        <button class="sound-btn ${selectedProfiles.has(snd.id) ? 'active' : ''}" id="btn-${snd.id}" onclick="toggleProfile('${snd.id}')">${snd.name}</button>
+                    </div>
+                    <div class="layer-vol-container">
+                        <span class="layer-vol-label" id="vol-lbl-${snd.id}">${initialVol}%</span>
+                        <input type="range" class="layer-vol-slider" min="0" max="100" value="${initialVol}" oninput="updateLayerVolume('${snd.id}', this.value)">
+                    </div>
+                `;
+                targetGrid.appendChild(card);
+            });
+            refreshCustomPresetsDropdown();
+        }
+
+        function drawVisualizer() {
+            const canvas = document.getElementById('oscilloscope');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+
+            if (!analyserNode) {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.strokeStyle = '#ffb000';
+                ctx.beginPath();
+                ctx.moveTo(0, canvas.height / 2);
+                ctx.lineTo(canvas.width, canvas.height / 2);
+                ctx.stroke();
+                requestAnimationFrame(drawVisualizer);
+                return;
+            }
+
+            const bufferLength = analyserNode.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyserNode.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#ffb000';
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = '#ffb000';
+
+            ctx.beginPath();
+            const sliceWidth = canvas.width / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = (v * canvas.height) / 2;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+
+                x += sliceWidth;
+            }
+
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+            requestAnimationFrame(drawVisualizer);
+        }
+
+        function toggleProfile(profile) {
+            if (selectedProfiles.has(profile)) {
+                if (selectedProfiles.size > 1) {
+                    selectedProfiles.delete(profile);
+                    document.getElementById(`btn-${profile}`).classList.remove('active');
+                    document.getElementById(`card-${profile}`).classList.remove('active');
+                }
+            } else {
+                const cardVol = parseInt(document.querySelector(`#card-${profile} .layer-vol-slider`).value) / 100;
+                selectedProfiles.set(profile, cardVol);
+                document.getElementById(`btn-${profile}`).classList.add('active');
+                document.getElementById(`card-${profile}`).classList.add('active');
+            }
+            
+            if (isPlaying) {
+                stopAllLayers();
+                startAllLayers();
+                updateStatusText();
+            }
+        }
+
+        function updateLayerVolume(profile, val) {
+            const numVal = parseInt(val) / 100;
+            document.getElementById(`vol-lbl-${profile}`).innerText = `${val}%`;
+            if (selectedProfiles.has(profile)) {
+                selectedProfiles.set(profile, numVal);
+                if (activeLayers[profile] && activeLayers[profile].gainNode) {
+                    activeLayers[profile].gainNode.gain.setValueAtTime(numVal, audioCtx.currentTime);
+                }
+            }
+        }
+
+        function loadPreset(presetKey) {
+            selectedProfiles.clear();
+            document.querySelectorAll('.sound-btn, .sound-card').forEach(el => el.classList.remove('active'));
+
+            if (presetKey === 'cosmic-horror') {
+                selectedProfiles.set('infrasound-18', 0.25);
+                selectedProfiles.set('infrasound-19', 0.2);
+                selectedProfiles.set('tritone-interval', 0.6);
+                selectedProfiles.set('subterranean', 0.9);
+                selectedProfiles.set('cave', 0.7);
+            } else if (presetKey === 'deep-worldbuilding') {
+                selectedProfiles.set('gamma-focus', 0.85);
+                selectedProfiles.set('solfeggio-963', 0.4);
+                selectedProfiles.set('rain-ambience', 0.9);
+                selectedProfiles.set('brown', 0.5);
+            } else if (presetKey === 'action-drafting') {
+                selectedProfiles.set('beta-action', 0.85);
+                selectedProfiles.set('cyber', 0.7);
+                selectedProfiles.set('pink', 0.4);
+            } else if (presetKey === 'lucid-astral') {
+                selectedProfiles.set('astral-border', 0.9);
+                selectedProfiles.set('iso-pulse', 0.75);
+                selectedProfiles.set('wind', 0.5);
+            } else if (presetKey === 'verbal-fluency') {
+                selectedProfiles.set('alpha-mid', 0.9);
+                selectedProfiles.set('solfeggio-852', 0.5);
+                selectedProfiles.set('green', 0.6);
+            } else if (presetKey === 'psychotic-dread') {
+                selectedProfiles.set('psycho-chord', 0.6);
+                selectedProfiles.set('shepard-illusion', 0.8);
+                selectedProfiles.set('nonlinear-spike', 0.4);
+                selectedProfiles.set('infrasound-18', 0.3);
+                selectedProfiles.set('sub-rumble-100', 0.5);
+                selectedProfiles.set('microtonal-friction', 0.4);
+            } else if (presetKey === 'dies-irae-funeral') {
+                selectedProfiles.set('dies-irae-chant', 0.85);
+                selectedProfiles.set('dropped-tuning-drone', 0.7);
+                selectedProfiles.set('infrasound-19', 0.25);
+                selectedProfiles.set('subterranean', 0.8);
+            } else if (presetKey === 'dread-infrasound') {
+                selectedProfiles.set('infrasound-18', 0.35);
+                selectedProfiles.set('sub-rumble-100', 0.60);
+                selectedProfiles.set('microtonal-friction', 0.30);
+                selectedProfiles.set('subterranean', 0.85);
+            } else if (presetKey === 'astral-projection') {
+                selectedProfiles.set('astral-border', 0.90);
+                selectedProfiles.set('schumann-783', 0.50);
+                selectedProfiles.set('iso-pulse', 0.60);
+                selectedProfiles.set('wind', 0.40);
+            } else if (presetKey === 'hyper-focus') {
+                selectedProfiles.set('gamma-focus', 0.80);
+                selectedProfiles.set('alpha-mid', 0.60);
+                selectedProfiles.set('solfeggio-528', 0.35);
+                selectedProfiles.set('pink', 0.45);
+            } else if (presetKey === 'catatonic-despair') {
+                selectedProfiles.set('sub-rumble-100', 0.75);
+                selectedProfiles.set('microtonal-friction', 0.50);
+                selectedProfiles.set('dissonant-beating', 0.40);
+                selectedProfiles.set('cave', 0.80);
+            } else if (presetKey === 'occult-transcendence') {
+                selectedProfiles.set('solfeggio-963', 0.60);
+                selectedProfiles.set('tritone-interval', 0.50);
+                selectedProfiles.set('dropped-tuning-drone', 0.65);
+                selectedProfiles.set('cosmic', 0.40);
+            }
+
+            applyLoadedProfiles();
+        }
+
+        function applyLoadedProfiles() {
+            selectedProfiles.forEach((vol, id) => {
+                const btn = document.getElementById(`btn-${id}`);
+                const card = document.getElementById(`card-${id}`);
+                if (btn) btn.classList.add('active');
+                if (card) {
+                    card.classList.add('active');
+                    const slider = card.querySelector('.layer-vol-slider');
+                    if (slider) slider.value = Math.round(vol * 100);
+                    const lbl = document.getElementById(`vol-lbl-${id}`);
+                    if (lbl) lbl.innerText = `${Math.round(vol * 100)}%`;
+                }
+            });
+
+            if (isPlaying) {
+                stopAllLayers();
+                startAllLayers();
+                updateStatusText();
+            }
+        }
+
+        async function initAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+
+            if (!masterFilter) {
+                masterFilter = audioCtx.createBiquadFilter();
+                masterFilter.type = 'lowpass';
+                masterFilter.frequency.setValueAtTime(parseInt(document.getElementById('filter-slider').value), audioCtx.currentTime);
+            }
+
+            if (!analyserNode) {
+                analyserNode = audioCtx.createAnalyser();
+                analyserNode.fftSize = 1024;
+            }
+
+            if (!masterGain) {
+                masterGain = audioCtx.createGain();
+                const sliderVal = parseInt(document.getElementById('vol-slider').value) / 100;
+                masterGain.gain.setValueAtTime(sliderVal * 0.25, audioCtx.currentTime);
+
+                masterFilter.connect(masterGain);
+                masterGain.connect(analyserNode);
+                analyserNode.connect(audioCtx.destination);
+            }
+
+            if (!jitterLFO) {
+                jitterLFO = audioCtx.createOscillator();
+                jitterGain = audioCtx.createGain();
+                jitterLFO.frequency.setValueAtTime(0.2, audioCtx.currentTime);
+                jitterGain.gain.setValueAtTime(parseFloat(document.getElementById('jitter-slider').value), audioCtx.currentTime);
+                jitterLFO.connect(jitterGain);
+                jitterLFO.start();
+            }
+        }
+
+        async function toggleAudioStream() {
+            await initAudioContext();
+
+            if (isPlaying) {
+                stopAllLayers();
+                isPlaying = false;
+                document.getElementById('toggle-btn').innerText = "ENGAGE GENERATOR";
+                document.getElementById('toggle-btn').classList.remove('playing');
+                document.getElementById('status-display').innerText = "STATUS: STANDBY";
+                clearTimeout(timerTimeout);
+                clearInterval(timerInterval);
+            } else {
+                startAllLayers();
+                isPlaying = true;
+                document.getElementById('toggle-btn').innerText = "DISENGAGE";
+                document.getElementById('toggle-btn').classList.add('playing');
+                updateStatusText();
+                
+                const mins = parseInt(document.getElementById('timer-slider').value);
+                if (mins > 0) startTimerCountdown(mins * 60);
+            }
+        }
+
+        function createBinauralPair(carrierFreq, beatFreq) {
+            const merger = audioCtx.createChannelMerger(2);
+            const oscL = audioCtx.createOscillator();
+            const oscR = audioCtx.createOscillator();
+            
+            oscL.frequency.setValueAtTime(carrierFreq, audioCtx.currentTime);
+            oscR.frequency.setValueAtTime(carrierFreq + beatFreq, audioCtx.currentTime);
+
+            if (jitterGain) {
+                jitterGain.connect(oscL.frequency);
+                jitterGain.connect(oscR.frequency);
+            }
+            
+            oscL.connect(merger, 0, 0);
+            oscR.connect(merger, 0, 1);
+            
+            oscL.start();
+            oscR.start();
+            
+            return {
+                outputNode: merger,
+                stop: () => { oscL.stop(); oscR.stop(); oscL.disconnect(); oscR.disconnect(); }
+            };
+        }
+
+        function generateBufferForProfile(profile) {
+            const bufferSize = 2 * audioCtx.sampleRate;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = buffer.getChannelData(0);
+
+            if (profile === 'rain-ambience') {
+                let b0 = 0, b1 = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    b0 = 0.98 * b0 + white * 0.05;
+                    b1 = 0.92 * b1 + white * 0.08;
+                    let patter = (Math.random() < 0.002) ? (Math.random() * 2.5) : 0;
+                    output[i] = (b0 + b1 + patter) * 0.35;
+                }
+            } else if (profile === 'subterranean') {
+                let lastOut = 0.0;
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    let lowEarth = (lastOut + (0.005 * white)) / 1.005;
+                    lastOut = lowEarth;
+                    let pressureResonance = Math.sin(i * 0.0008) * 0.25;
+                    output[i] = (lowEarth * 5.0) + pressureResonance;
+                }
+            } else if (profile === 'drips') {
+                let lastOut = 0.0;
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    let dripImpulse = 0;
+                    if (Math.random() < 0.0002) {
+                        dripImpulse = Math.sin(i * 0.8) * Math.exp(-0.01 * (i % 500));
+                    }
+                    output[i] = (lastOut + (0.01 * white)) / 1.01 + dripImpulse;
+                    lastOut = output[i];
+                    output[i] *= 1.8;
+                }
+            } else if (profile === 'brown') {
+                let lastOut = 0.0;
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    output[i] = (lastOut + (0.02 * white)) / 1.02;
+                    lastOut = output[i];
+                    output[i] *= 2.8;
+                }
+            } else if (profile === 'cave') {
+                let lastOut = 0.0;
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    output[i] = (lastOut + (0.008 * white)) / 1.008;
+                    lastOut = output[i];
+                    output[i] *= 4.5;
+                }
+            } else if (profile === 'rain') {
+                let lastOut = 0.0;
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    if (Math.random() < 0.001) white += (Math.random() * 16 - 8);
+                    output[i] = (lastOut + (0.03 * white)) / 1.03;
+                    lastOut = output[i];
+                    output[i] *= 2.2;
+                }
+            } else if (profile === 'cyber') {
+                for (let i = 0; i < bufferSize; i++) {
+                    let hum = Math.sin(i * 0.015) * 0.3;
+                    output[i] = hum + ((Math.random() * 2 - 1) * 0.15);
+                }
+            } else if (profile === 'white') {
+                for (let i = 0; i < bufferSize; i++) {
+                    output[i] = (Math.random() * 2 - 1) * 0.8;
+                }
+            } else if (profile === 'pink') {
+                let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = -0.7616 * b5 - white * 0.0168980;
+                    output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.1;
+                    b6 = white * 0.115926;
+                }
+            } else if (profile === 'green') {
+                let last = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    last = 0.93 * last + white * 0.07;
+                    let bump = Math.sin(i * 0.07) * 0.1;
+                    output[i] = (last + bump) * 1.5;
+                }
+            } else if (profile === 'grey') {
+                for (let i = 0; i < bufferSize; i++) {
+                    let white = Math.random() * 2 - 1;
+                    let highCurve = (i % 2 === 0) ? white * 0.6 : white * 0.3;
+                    output[i] = highCurve;
+                }
+            } else if (profile === 'cosmic') {
+                for (let i = 0; i < bufferSize; i++) {
+                    let staticPulse = (Math.random() > 0.92) ? (Math.random() * 2 - 1) * 0.9 : (Math.random() * 2 - 1) * 0.2;
+                    output[i] = staticPulse;
+                }
+            } else if (profile === 'wind') {
+                for (let i = 0; i < bufferSize; i++) {
+                    let windSweep = Math.sin(i * 0.0003) * 0.4;
+                    output[i] = ((Math.random() * 2 - 1) * 0.3) + windSweep;
+                }
+            }
+
+            return buffer;
+        }
+
+        function startAllLayers() {
+            if (!audioCtx) return;
+
+            const layerGainScale = 1 / Math.sqrt(selectedProfiles.size);
+            const panRate = parseFloat(document.getElementById('pan-rate-slider').value);
+
+            selectedProfiles.forEach((userGain, profile) => {
+                const layerGain = audioCtx.createGain();
+                const targetGain = layerGainScale * userGain;
+                layerGain.gain.setValueAtTime(targetGain, audioCtx.currentTime);
+
+                const panner = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+
+                if (panner) {
+                    let pTime = Math.random() * 10;
+                    const panInterval = setInterval(() => {
+                        if (!isPlaying || !activeLayers[profile]) {
+                            clearInterval(panInterval);
+                            return;
+                        }
+                        pTime += panRate;
+                        panner.pan.setValueAtTime(Math.sin(pTime) * 0.75, audioCtx.currentTime);
+                    }, 50);
+
+                    layerGain.connect(panner);
+                    panner.connect(masterFilter);
+                } else {
+                    layerGain.connect(masterFilter);
+                }
+
+                if (profile === 'alpha-mid') {
+                    const binaural = createBinauralPair(200, 10);
+                    binaural.outputNode.connect(layerGain);
+                    activeLayers[profile] = { stop: () => binaural.stop(), gainNode: layerGain };
+                } else if (profile === 'theta-waves') {
+                    const binaural = createBinauralPair(200, 6);
+                    binaural.outputNode.connect(layerGain);
+                    activeLayers[profile] = { stop: () => binaural.stop(), gainNode: layerGain };
+                } else if (profile === 'gamma-focus') {
+                    const binaural = createBinauralPair(200, 40);
+                    binaural.outputNode.connect(layerGain);
+                    activeLayers[profile] = { stop: () => binaural.stop(), gainNode: layerGain };
+                } else if (profile === 'beta-action') {
+                    const binaural = createBinauralPair(200, 20);
+                    binaural.outputNode.connect(layerGain);
+                    activeLayers[profile] = { stop: () => binaural.stop(), gainNode: layerGain };
+                } else if (profile === 'custom-binaural') {
+                    const carrier = parseFloat(document.getElementById('custom-carrier').value) || 200;
+                    const beat = parseFloat(document.getElementById('custom-beat').value) || 7.83;
+                    const binaural = createBinauralPair(carrier, beat);
+                    binaural.outputNode.connect(layerGain);
+                    activeLayers[profile] = { stop: () => binaural.stop(), gainNode: layerGain };
+                } else if (profile === 'astral-border') {
+                    const binaural = createBinauralPair(150, 4);
+                    binaural.outputNode.connect(layerGain);
+                    activeLayers[profile] = { stop: () => binaural.stop(), gainNode: layerGain };
+                } else if (profile === 'astral-theta') {
+                    const binaural = createBinauralPair(150, 7);
+                    binaural.outputNode.connect(layerGain);
+                    activeLayers[profile] = { stop: () => binaural.stop(), gainNode: layerGain };
+                } else if (profile === 'schumann-783') {
+                    const binaural = createBinauralPair(136.1, 7.83);
+                    binaural.outputNode.connect(layerGain);
+                    activeLayers[profile] = { stop: () => binaural.stop(), gainNode: layerGain };
+                } else if (profile === 'epsilon-1p5') {
+                    const binaural = createBinauralPair(136.1, 1.5);
+                    binaural.outputNode.connect(layerGain);
+                    activeLayers[profile] = { stop: () => binaural.stop(), gainNode: layerGain };
+                } else if (profile === 'iso-pulse') {
+                    const osc = audioCtx.createOscillator();
+                    const gate = audioCtx.createGain();
+                    osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                    if (jitterGain) jitterGain.connect(osc.frequency);
+                    
+                    const now = audioCtx.currentTime;
+                    const pulseRate = 0.25;
+                    for (let t = 0; t < 3600; t += pulseRate) {
+                        gate.gain.setValueAtTime(1.0, now + t);
+                        gate.gain.setValueAtTime(0.001, now + t + 0.125);
+                    }
+                    
+                    osc.connect(gate);
+                    gate.connect(layerGain);
+                    osc.start();
+                    activeLayers[profile] = { stop: () => { osc.stop(); osc.disconnect(); gate.disconnect(); }, gainNode: layerGain };
+                } else if (profile === 'harm-432' || profile === 'solfeggio-528' || profile === 'solfeggio-852' || profile === 'solfeggio-963') {
+                    const freqMap = { 'harm-432': 432, 'solfeggio-528': 528, 'solfeggio-852': 852, 'solfeggio-963': 963 };
+                    const osc = audioCtx.createOscillator();
+                    osc.frequency.setValueAtTime(freqMap[profile], audioCtx.currentTime);
+                    if (jitterGain) jitterGain.connect(osc.frequency);
+                    osc.connect(layerGain);
+                    osc.start();
+                    activeLayers[profile] = { stop: () => { osc.stop(); osc.disconnect(); }, gainNode: layerGain };
+                } else if (profile === 'archaeo-111') {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(111, audioCtx.currentTime);
+                    if (jitterGain) jitterGain.connect(osc.frequency);
+                    osc.connect(layerGain);
+                    osc.start();
+                    activeLayers[profile] = { stop: () => { osc.stop(); osc.disconnect(); }, gainNode: layerGain };
+                } else if (profile === 'infrasound-7') {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(7, audioCtx.currentTime);
+                    osc.connect(layerGain);
+                    osc.start();
+                    activeLayers[profile] = { stop: () => { osc.stop(); osc.disconnect(); }, gainNode: layerGain };
+                } else if (profile === 'infrasound-18') {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(18, audioCtx.currentTime);
+                    osc.connect(layerGain);
+                    osc.start();
+                    activeLayers[profile] = { stop: () => { osc.stop(); osc.disconnect(); }, gainNode: layerGain };
+                } else if (profile === 'infrasound-19') {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(19, audioCtx.currentTime);
+                    osc.connect(layerGain);
+                    osc.start();
+                    activeLayers[profile] = { stop: () => { osc.stop(); osc.disconnect(); }, gainNode: layerGain };
+                } else if (profile === 'sub-rumble-100') {
+                    const osc = audioCtx.createOscillator();
+                    const mod = audioCtx.createOscillator();
+                    const modGain = audioCtx.createGain();
+
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                    if (jitterGain) jitterGain.connect(osc.frequency);
+
+                    mod.frequency.setValueAtTime(0.2, audioCtx.currentTime);
+                    modGain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+
+                    mod.connect(modGain);
+                    modGain.connect(osc.frequency);
+
+                    osc.connect(layerGain);
+                    osc.start();
+                    mod.start();
+
+                    activeLayers[profile] = { 
+                        stop: () => { osc.stop(); mod.stop(); osc.disconnect(); mod.disconnect(); modGain.disconnect(); }, 
+                        gainNode: layerGain 
+                    };
+                } else if (profile === 'microtonal-friction') {
+                    const osc1 = audioCtx.createOscillator();
+                    const osc2 = audioCtx.createOscillator();
+                    osc1.type = 'sawtooth';
+                    osc2.type = 'sawtooth';
+
+                    osc1.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    osc2.frequency.setValueAtTime(442.5, audioCtx.currentTime);
+                    if (jitterGain) {
+                        jitterGain.connect(osc1.frequency);
+                        jitterGain.connect(osc2.frequency);
+                    }
+
+                    osc1.connect(layerGain);
+                    osc2.connect(layerGain);
+
+                    osc1.start();
+                    osc2.start();
+
+                    activeLayers[profile] = { 
+                        stop: () => { osc1.stop(); osc2.stop(); osc1.disconnect(); osc2.disconnect(); }, 
+                        gainNode: layerGain 
+                    };
+               } else if (profile === 'flies-buzz') {
+				// 1. Dual Oscillators for Insect Wing-Beat Resonance
+				const wingOsc1 = audioCtx.createOscillator();
+				const wingOsc2 = audioCtx.createOscillator();
+				wingOsc1.type = 'sawtooth';
+				wingOsc2.type = 'sawtooth';
+
+    // Base wing frequencies (approx 185Hz and 212Hz for realistic swarm dissonance)
+				wingOsc1.frequency.setValueAtTime(185, audioCtx.currentTime);
+				wingOsc2.frequency.setValueAtTime(212, audioCtx.currentTime);
+
+    // 2. Flight Pitch Modulation (Simulating speed changes and darting)
+				const flightLfo = audioCtx.createOscillator();
+				const flightLfoGain = audioCtx.createGain();
+				flightLfo.type = 'sine';
+				flightLfo.frequency.setValueAtTime(4.2, audioCtx.currentTime); // 4.2 Hz flight jitter
+				flightLfoGain.gain.setValueAtTime(25.0, audioCtx.currentTime);  // Pitch deviation
+
+				flightLfo.connect(flightLfoGain);
+				flightLfoGain.connect(wingOsc1.frequency);
+				flightLfoGain.connect(wingOsc2.frequency);
+
+				if (jitterGain) {
+					jitterGain.connect(wingOsc1.frequency);
+					jitterGain.connect(wingOsc2.frequency);
+				}
+
+    // 3. Acoustic Resonant Bandpass (Simulating insect body resonance & Doppler effect)
+				const insectFilter = audioCtx.createBiquadFilter();
+				insectFilter.type = 'bandpass';
+				insectFilter.frequency.setValueAtTime(1800, audioCtx.currentTime);
+				insectFilter.Q.setValueAtTime(3.5, audioCtx.currentTime); // Sharp resonance peak
+
+				wingOsc1.connect(insectFilter);
+				wingOsc2.connect(insectFilter);
+
+    // 4. Random Spatial Panning & Filter Drift Loop
+				const flyPanner = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+				const soundOutput = flyPanner ? flyPanner : layerGain;
+
+				if (flyPanner) {
+					insectFilter.connect(flyPanner);
+					flyPanner.connect(layerGain);
+				} else {
+					insectFilter.connect(layerGain);
+				}
+
+    // Interval to randomly dart pitch, filter, and stereo pan every 150-400ms
+				const dartInterval = setInterval(() => {
+					if (!isPlaying || !activeLayers[profile]) {
+						clearInterval(dartInterval);
+						return;
+					}
+					const now = audioCtx.currentTime;
+					if (Math.random() < 0.45) {
+            // Rapid pitch surge (fly zooming closer)
+						const targetFreq1 = 170 + Math.random() * 60;
+						const targetFreq2 = 200 + Math.random() * 60;
+						wingOsc1.frequency.exponentialRampToValueAtTime(targetFreq1, now + 0.12);
+						wingOsc2.frequency.exponentialRampToValueAtTime(targetFreq2, now + 0.12);
+
+            // Filter frequency sweep (Doppler brightness shift)
+						insectFilter.frequency.linearRampToValueAtTime(1400 + Math.random() * 1200, now + 0.15);
+
+            // Pan shift across stereo spectrum
+						if (flyPanner) {
+							const panTarget = (Math.random() * 1.8) - 0.9;
+							flyPanner.pan.linearRampToValueAtTime(panTarget, now + 0.15);
+						}
+					}
+				}, 250);
+
+				wingOsc1.start();
+				wingOsc2.start();
+				flightLfo.start();
+
+				activeLayers[profile] = { 
+					stop: () => { 
+						clearInterval(dartInterval);
+						wingOsc1.stop(); wingOsc2.stop(); flightLfo.stop(); 
+						wingOsc1.disconnect(); wingOsc2.disconnect(); flightLfo.disconnect(); 
+						insectFilter.disconnect(); 
+						if (flyPanner) flyPanner.disconnect();
+					}, 
+					gainNode: layerGain 
+				};
+			} else if (profile === 'cricket-chirp') {
+				// Pulsed Bandpass Noise / Sine Carrier for High Stridulation
+				const osc = audioCtx.createOscillator();
+				const chirpGate = audioCtx.createGain();
+    
+				osc.type = 'sine';
+				osc.frequency.setValueAtTime(4800, audioCtx.currentTime);
+
+				// Rhythmic pulsing loop for natural cricket chirping patterns
+				let isChirping = true;
+				const chirpInterval = setInterval(() => {
+					if (!isPlaying || !activeLayers[profile]) {
+						clearInterval(chirpInterval);
+						return;
+					}
+					const now = audioCtx.currentTime;
+					// Burst pattern (3 fast pulses per chirp cycle)
+					for (let i = 0; i < 3; i++) {
+						chirpGate.gain.setValueAtTime(0.7, now + (i * 0.04));
+						chirpGate.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.04) + 0.03);
+					}
+				}, 800);
+
+				chirpGate.gain.setValueAtTime(0.001, audioCtx.currentTime);
+				osc.connect(chirpGate);
+				chirpGate.connect(layerGain);
+				osc.start();
+
+				activeLayers[profile] = { 
+					stop: () => { 
+						clearInterval(chirpInterval); 
+						osc.stop(); osc.disconnect(); chirpGate.disconnect(); 
+					}, 
+					gainNode: layerGain 
+				};
+
+			} else if (profile === 'owl-hoot') {
+				// Smooth Sine Wave Pitch Glide Envelope
+				const osc = audioCtx.createOscillator();
+				const hootGain = audioCtx.createGain();
+
+				osc.type = 'sine';
+				hootGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+
+				// Trigger intermittent distant owl call every 7-12 seconds
+				const owlInterval = setInterval(() => {
+					if (!isPlaying || !activeLayers[profile]) {
+						clearInterval(owlInterval);
+						return;
+					}
+					const now = audioCtx.currentTime;
+					// First "Hoo"
+					osc.frequency.setValueAtTime(360, now);
+					osc.frequency.exponentialRampToValueAtTime(270, now + 0.4);
+					hootGain.gain.setValueAtTime(0.001, now);
+					hootGain.gain.linearRampToValueAtTime(0.6, now + 0.1);
+					hootGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+					// Second longer "Hooo-hoooo"
+					osc.frequency.setValueAtTime(380, now + 0.6);
+					osc.frequency.exponentialRampToValueAtTime(250, now + 1.2);
+					hootGain.gain.setValueAtTime(0.001, now + 0.6);
+					hootGain.gain.linearRampToValueAtTime(0.8, now + 0.8);
+					hootGain.gain.exponentialRampToValueAtTime(0.001, now + 1.35);
+				}, 9000);
+
+				osc.connect(hootGain);
+				hootGain.connect(layerGain);
+				osc.start();
+
+				activeLayers[profile] = { 
+					stop: () => { 
+						clearInterval(owlInterval); 
+						osc.stop(); osc.disconnect(); hootGain.disconnect(); 
+					}, 
+					gainNode: layerGain 
+				};
+                } else if (profile === 'dissonant-beating') {
+                    const osc1 = audioCtx.createOscillator();
+                    const osc2 = audioCtx.createOscillator();
+                    const lfo = audioCtx.createOscillator();
+                    const lfoGain = audioCtx.createGain();
+
+                    osc1.frequency.setValueAtTime(200, audioCtx.currentTime);
+                    osc2.frequency.setValueAtTime(201, audioCtx.currentTime);
+                    if (jitterGain) {
+                        jitterGain.connect(osc1.frequency);
+                        jitterGain.connect(osc2.frequency);
+                    }
+
+                    lfo.frequency.setValueAtTime(0.05, audioCtx.currentTime);
+                    lfoGain.gain.setValueAtTime(1.5, audioCtx.currentTime);
+
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(osc2.frequency);
+
+                    osc1.connect(layerGain);
+                    osc2.connect(layerGain);
+
+                    osc1.start();
+                    osc2.start();
+                    lfo.start();
+
+                    activeLayers[profile] = { 
+                        stop: () => { osc1.stop(); osc2.stop(); lfo.stop(); osc1.disconnect(); osc2.disconnect(); lfo.disconnect(); }, 
+                        gainNode: layerGain 
+                    };
+                } else if (profile === 'tritone-interval') {
+                    const osc1 = audioCtx.createOscillator();
+                    const osc2 = audioCtx.createOscillator();
+                    osc1.frequency.setValueAtTime(220, audioCtx.currentTime);
+                    osc2.frequency.setValueAtTime(311.13, audioCtx.currentTime);
+                    if (jitterGain) {
+                        jitterGain.connect(osc1.frequency);
+                        jitterGain.connect(osc2.frequency);
+                    }
+                    osc1.connect(layerGain);
+                    osc2.connect(layerGain);
+                    osc1.start();
+                    osc2.start();
+                    activeLayers[profile] = { stop: () => { osc1.stop(); osc2.stop(); osc1.disconnect(); osc2.disconnect(); }, gainNode: layerGain };
+                } else if (profile === 'psycho-chord') {
+                    const freqs = [233.08, 277.18, 349.23, 440.00];
+                    const oscs = freqs.map(f => {
+                        const o = audioCtx.createOscillator();
+                        o.type = 'sawtooth';
+                        o.frequency.setValueAtTime(f, audioCtx.currentTime);
+                        if (jitterGain) jitterGain.connect(o.frequency);
+                        o.connect(layerGain);
+                        o.start();
+                        return o;
+                    });
+                    activeLayers[profile] = { stop: () => { oscs.forEach(o => { o.stop(); o.disconnect(); }); }, gainNode: layerGain };
+                } else if (profile === 'shepard-illusion') {
+                    const baseFreq = 110;
+                    const sweepTime = 8.0;
+                    const oscs = [0, 1, 2].map(oct => {
+                        const osc = audioCtx.createOscillator();
+                        const gNode = audioCtx.createGain();
+                        osc.frequency.setValueAtTime(baseFreq * Math.pow(2, oct), audioCtx.currentTime);
+                        osc.frequency.linearRampToValueAtTime(baseFreq * Math.pow(2, oct + 1), audioCtx.currentTime + sweepTime);
+                        if (jitterGain) jitterGain.connect(osc.frequency);
+                        osc.connect(gNode);
+                        gNode.connect(layerGain);
+                        osc.start();
+                        return { osc, gNode };
+                    });
+
+                    activeLayers[profile] = { 
+                        stop: () => { oscs.forEach(o => { o.osc.stop(); o.osc.disconnect(); o.gNode.disconnect(); }); }, 
+                        gainNode: layerGain 
+                    };
+                } else if (profile === 'nonlinear-spike') {
+                    const osc = audioCtx.createOscillator();
+                    const spikeGain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+
+                    const spikeInterval = setInterval(() => {
+                        if (!isPlaying || !activeLayers[profile]) {
+                            clearInterval(spikeInterval);
+                            return;
+                        }
+                        if (Math.random() < 0.25) {
+                            const targetFreq = 120 + Math.random() * 600;
+                            osc.frequency.exponentialRampToValueAtTime(targetFreq, audioCtx.currentTime + 0.15);
+                            spikeGain.gain.setValueAtTime(1.8, audioCtx.currentTime);
+                            spikeGain.gain.exponentialRampToValueAtTime(0.2, audioCtx.currentTime + 0.4);
+                        }
+                    }, 400);
+
+                    osc.connect(spikeGain);
+                    spikeGain.connect(layerGain);
+                    osc.start();
+
+                    activeLayers[profile] = { 
+                        stop: () => { clearInterval(spikeInterval); osc.stop(); osc.disconnect(); spikeGain.disconnect(); }, 
+                        gainNode: layerGain 
+                    };
+                } else if (profile === 'dropped-tuning-drone') {
+                    const freqs = [27.50, 41.20, 55.00];
+                    const oscs = freqs.map(f => {
+                        const o = audioCtx.createOscillator();
+                        o.type = 'sawtooth';
+                        o.frequency.setValueAtTime(f, audioCtx.currentTime);
+                        if (jitterGain) jitterGain.connect(o.frequency);
+                        o.connect(layerGain);
+                        o.start();
+                        return o;
+                    });
+                    activeLayers[profile] = { stop: () => { oscs.forEach(o => { o.stop(); o.disconnect(); }); }, gainNode: layerGain };
+                } else if (profile === 'dies-irae-chant') {
+                    const notes = [349.23, 329.63, 349.23, 293.66];
+                    const osc = audioCtx.createOscillator();
+                    const noteGain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    
+                    let noteIdx = 0;
+                    osc.frequency.setValueAtTime(notes[0], audioCtx.currentTime);
+                    if (jitterGain) jitterGain.connect(osc.frequency);
+                    
+                    const chantInterval = setInterval(() => {
+                        if (!isPlaying || !activeLayers[profile]) {
+                            clearInterval(chantInterval);
+                            return;
+                        }
+                        noteIdx = (noteIdx + 1) % notes.length;
+                        osc.frequency.exponentialRampToValueAtTime(notes[noteIdx], audioCtx.currentTime + 0.2);
+                    }, 1200);
+
+                    osc.connect(noteGain);
+                    noteGain.connect(layerGain);
+                    osc.start();
+
+                    activeLayers[profile] = { 
+                        stop: () => { clearInterval(chantInterval); osc.stop(); osc.disconnect(); noteGain.disconnect(); }, 
+                        gainNode: layerGain 
+                    };
+                } else if (profile === 'tartini-ghost') {
+                    const osc1 = audioCtx.createOscillator();
+                    const osc2 = audioCtx.createOscillator();
+                    osc1.type = 'sine';
+                    osc2.type = 'sine';
+                    osc1.frequency.setValueAtTime(1000, audioCtx.currentTime);
+                    osc2.frequency.setValueAtTime(1111, audioCtx.currentTime);
+                    if (jitterGain) {
+                        jitterGain.connect(osc1.frequency);
+                        jitterGain.connect(osc2.frequency);
+                    }
+                    osc1.connect(layerGain);
+                    osc2.connect(layerGain);
+                    osc1.start();
+                    osc2.start();
+                    activeLayers[profile] = { stop: () => { osc1.stop(); osc2.stop(); osc1.disconnect(); osc2.disconnect(); }, gainNode: layerGain };
+                } else {
+                    const buffer = generateBufferForProfile(profile);
+                    const source = audioCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.loop = true;
+                    source.connect(layerGain);
+                    source.start();
+                    activeLayers[profile] = { stop: () => { source.stop(); source.disconnect(); }, gainNode: layerGain };
+                }
+            });
+        }
+
+        function stopAllLayers() {
+            Object.keys(activeLayers).forEach(p => {
+                try {
+                    if (activeLayers[p] && activeLayers[p].stop) {
+                        activeLayers[p].stop();
+                    }
+                } catch(e) {}
+            });
+            activeLayers = {};
+        }
+
+        function updateVolume() {
+            const val = parseInt(document.getElementById('vol-slider').value);
+            document.getElementById('vol-val').innerText = val + '%';
+            if (masterGain && audioCtx) {
+                masterGain.gain.setValueAtTime((val / 100) * 0.25, audioCtx.currentTime);
+            }
+        }
+
+        function updateFilter() {
+            const val = parseInt(document.getElementById('filter-slider').value);
+            let desc = `${val} Hz`;
+            if (val <= 500) desc += " (Sub-Bunker)";
+            else if (val <= 1200) desc += " (Deep Earth)";
+            else if (val <= 3000) desc += " (Stone Tunnel)";
+            else desc += " (Open Air)";
+
+            document.getElementById('filter-val').innerText = desc;
+            if (masterFilter && audioCtx) {
+                masterFilter.frequency.setValueAtTime(val, audioCtx.currentTime);
+            }
+        }
+
+        function updateJitter() {
+            const val = parseFloat(document.getElementById('jitter-slider').value);
+            document.getElementById('jitter-val').innerText = `${val.toFixed(1)} Hz ${val > 0 ? '(Active Tape Flutter)' : '(Static Pure Tones)'}`;
+            if (jitterGain && audioCtx) {
+                jitterGain.gain.setValueAtTime(val, audioCtx.currentTime);
+            }
+        }
+
+        function updatePanRate() {
+            const val = parseFloat(document.getElementById('pan-rate-slider').value);
+            document.getElementById('pan-rate-val').innerText = `${val.toFixed(2)} Hz (${val < 0.1 ? 'Slow Drift' : 'Rapid Sweep'})`;
+        }
+
+        function updateCustomBinauralParams() {
+            if (selectedProfiles.has('custom-binaural') && isPlaying) {
+                stopAllLayers();
+                startAllLayers();
+            }
+        }
+
+        function updateTimerSetting() {
+            const mins = parseInt(document.getElementById('timer-slider').value);
+            document.getElementById('timer-val').innerText = mins === 0 ? "OFF" : mins + " MIN";
+
+            if (isPlaying) {
+                clearTimeout(timerTimeout);
+                clearInterval(timerInterval);
+                if (mins > 0) startTimerCountdown(mins * 60);
+                else updateStatusText();
+            }
+        }
+
+        function updateStatusText() {
+            const activeList = Array.from(selectedProfiles.keys()).map(p => p.toUpperCase()).join(" + ");
+            document.getElementById('status-display').innerText = `STATUS: EMITTING [${activeList}]`;
+        }
+
+        function startTimerCountdown(totalSecs) {
+            secondsRemaining = totalSecs;
+            timerInterval = setInterval(() => {
+                secondsRemaining--;
+                let m = Math.floor(secondsRemaining / 60).toString().padStart(2, '0');
+                let s = (secondsRemaining % 60).toString().padStart(2, '0');
+                document.getElementById('status-display').innerText = `STATUS: AUTO-STOP IN ${m}:${s}`;
+                if (secondsRemaining <= 0) clearInterval(timerInterval);
+            }, 1000);
+
+            timerTimeout = setTimeout(() => {
+                if (isPlaying) toggleAudioStream();
+            }, totalSecs * 1000);
+        }
+
+        function copySessionURL() {
+            const layersArr = [];
+            selectedProfiles.forEach((vol, id) => {
+                layersArr.push(`${id}:${vol.toFixed(2)}`);
+            });
+            const masterVol = document.getElementById('vol-slider').value;
+            const filterVal = document.getElementById('filter-slider').value;
+            const jitterVal = document.getElementById('jitter-slider').value;
+            
+            const params = new URLSearchParams();
+            params.set('layers', layersArr.join(','));
+            params.set('vol', masterVol);
+            params.set('filter', filterVal);
+            params.set('jitter', jitterVal);
+
+            const shareableURL = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+            navigator.clipboard.writeText(shareableURL).then(() => {
+                alert("Session URL copied to clipboard!");
+            });
+        }
+
+        function saveCustomPreset() {
+            const name = prompt("Enter a name for this custom preset:");
+            if (!name) return;
+
+            const layersObj = {};
+            selectedProfiles.forEach((vol, id) => {
+                layersObj[id] = vol;
+            });
+
+            const presets = JSON.parse(localStorage.getItem('aiu_custom_presets') || '{}');
+            presets[name] = layersObj;
+            localStorage.setItem('aiu_custom_presets', JSON.stringify(presets));
+            refreshCustomPresetsDropdown();
+            alert(`Preset "${name}" saved to browser memory!`);
+        }
+
+        function refreshCustomPresetsDropdown() {
+            const select = document.getElementById('user-presets-select');
+            select.innerHTML = '<option value="">-- Select Saved Preset --</option>';
+            const presets = JSON.parse(localStorage.getItem('aiu_custom_presets') || '{}');
+            
+            Object.keys(presets).forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+        }
+
+        function loadSelectedCustomPreset() {
+            const select = document.getElementById('user-presets-select');
+            const name = select.value;
+            if (!name) {
+                alert("Please select a saved preset to load.");
+                return;
+            }
+
+            const presets = JSON.parse(localStorage.getItem('aiu_custom_presets') || '{}');
+            const presetData = presets[name];
+            if (!presetData) return;
+
+            selectedProfiles.clear();
+            document.querySelectorAll('.sound-btn, .sound-card').forEach(el => el.classList.remove('active'));
+
+            Object.entries(presetData).forEach(([id, vol]) => {
+                selectedProfiles.set(id, vol);
+            });
+
+            applyLoadedProfiles();
+        }
+
+        function deleteSelectedCustomPreset() {
+            const select = document.getElementById('user-presets-select');
+            const name = select.value;
+            if (!name) {
+                alert("Please select a saved preset to delete.");
+                return;
+            }
+
+            if (confirm(`Delete preset "${name}"?`)) {
+                const presets = JSON.parse(localStorage.getItem('aiu_custom_presets') || '{}');
+                delete presets[name];
+                localStorage.setItem('aiu_custom_presets', JSON.stringify(presets));
+                refreshCustomPresetsDropdown();
+            }
+        }
+
+        async function exportOfflineWAV() {
+            const durationMins = parseInt(prompt("Enter export duration in minutes (1 to 15):", "3")) || 3;
+            const validDuration = Math.min(Math.max(durationMins, 1), 15);
+            const sampleRate = 44100;
+            const renderDurationSecs = validDuration * 60;
+            const offlineCtx = new OfflineAudioContext(2, sampleRate * renderDurationSecs, sampleRate);
+
+            document.getElementById('status-display').innerText = `STATUS: RENDERING ${validDuration}-MIN WAV FILE...`;
+
+            const offlineFilter = offlineCtx.createBiquadFilter();
+            offlineFilter.type = 'lowpass';
+            offlineFilter.frequency.setValueAtTime(parseInt(document.getElementById('filter-slider').value), 0);
+
+            const offlineGain = offlineCtx.createGain();
+            const masterVol = parseInt(document.getElementById('vol-slider').value) / 100;
+            offlineGain.gain.setValueAtTime(masterVol * 0.25, 0);
+
+            offlineFilter.connect(offlineGain);
+            offlineGain.connect(offlineCtx.destination);
+
+            const layerGainScale = 1 / Math.sqrt(selectedProfiles.size);
+
+            selectedProfiles.forEach((userGain, profile) => {
+                const layerGain = offlineCtx.createGain();
+                layerGain.gain.setValueAtTime(layerGainScale * userGain, 0);
+                layerGain.connect(offlineFilter);
+
+                if (profile === 'alpha-mid' || profile === 'theta-waves' || profile === 'gamma-focus' || profile === 'beta-action' || profile === 'custom-binaural' || profile === 'astral-border' || profile === 'astral-theta' || profile === 'schumann-783' || profile === 'epsilon-1p5') {
+                    let c = 200, b = 10;
+                    if (profile === 'theta-waves') { c = 200; b = 6; }
+                    else if (profile === 'gamma-focus') { c = 200; b = 40; }
+                    else if (profile === 'beta-action') { c = 200; b = 20; }
+                    else if (profile === 'custom-binaural') { 
+                        c = parseFloat(document.getElementById('custom-carrier').value) || 200; 
+                        b = parseFloat(document.getElementById('custom-beat').value) || 7.83; 
+                    }
+                    else if (profile === 'astral-border') { c = 150; b = 4; }
+                    else if (profile === 'astral-theta') { c = 150; b = 7; }
+                    else if (profile === 'schumann-783') { c = 136.1; b = 7.83; }
+                    else if (profile === 'epsilon-1p5') { c = 136.1; b = 1.5; }
+
+                    const merger = offlineCtx.createChannelMerger(2);
+                    const oscL = offlineCtx.createOscillator();
+                    const oscR = offlineCtx.createOscillator();
+                    oscL.frequency.setValueAtTime(c, 0);
+                    oscR.frequency.setValueAtTime(c + b, 0);
+                    oscL.connect(merger, 0, 0);
+                    oscR.connect(merger, 0, 1);
+                    merger.connect(layerGain);
+                    oscL.start(0);
+                    oscR.start(0);
+                } else if (profile === 'harm-432' || profile === 'solfeggio-528' || profile === 'solfeggio-852' || profile === 'solfeggio-963' || profile === 'archaeo-111' || profile === 'infrasound-7' || profile === 'infrasound-18' || profile === 'infrasound-19') {
+                    const freqMap = { 'harm-432': 432, 'solfeggio-528': 528, 'solfeggio-852': 852, 'solfeggio-963': 963, 'archaeo-111': 111, 'infrasound-7': 7, 'infrasound-18': 18, 'infrasound-19': 19 };
+                    const osc = offlineCtx.createOscillator();
+                    osc.frequency.setValueAtTime(freqMap[profile], 0);
+                    osc.connect(layerGain);
+                    osc.start(0);
+                } else {
+                    const buffer = generateBufferForProfile(profile);
+                    const source = offlineCtx.createBufferSource();
+                    source.buffer = buffer;
+                    source.loop = true;
+                    source.connect(layerGain);
+                    source.start(0);
+                }
+            });
+
+            const renderedBuffer = await offlineCtx.startRendering();
+            const wavBlob = bufferToWaveBlob(renderedBuffer);
+            const downloadUrl = URL.createObjectURL(wavBlob);
+
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `AIU_Soundscape_${Date.now()}.wav`;
+            a.click();
+
+            document.getElementById('status-display').innerText = "STATUS: WAV EXPORT COMPLETE";
+        }
+
+        function bufferToWaveBlob(abuffer) {
+            let numOfChan = abuffer.numberOfChannels,
+                len = abuffer.length * numOfChan * 2 + 44,
+                buffer = new ArrayBuffer(len),
+                view = new DataView(buffer),
+                channels = [], i, sample,
+                offset = 0,
+                pos = 0;
+
+            function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+            function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+
+            setUint32(0x46464952);
+            setUint32(len - 8);
+            setUint32(0x45564157);
+            setUint32(0x20746d66);
+            setUint32(16);
+            setUint16(1);
+            setUint16(numOfChan);
+            setUint32(abuffer.sampleRate);
+            setUint32(abuffer.sampleRate * 2 * numOfChan);
+            setUint16(numOfChan * 2);
+            setUint16(16);
+            setUint32(0x61746164);
+            setUint32(len - pos - 4);
+
+            for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+
+            while (offset < abuffer.length) {
+                for (i = 0; i < numOfChan; i++) {
+                    sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                    view.setInt16(pos, sample, true);
+                    pos += 2;
+                }
+                offset++;
+            }
+            return new Blob([buffer], { type: "audio/wav" });
+        }
+
+        function loadURLConfig() {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.has('layers')) return;
+
+            selectedProfiles.clear();
+            document.querySelectorAll('.sound-btn, .sound-card').forEach(el => el.classList.remove('active'));
+
+            const layersParam = params.get('layers');
+            layersParam.split(',').forEach(pair => {
+                const [id, volStr] = pair.split(':');
+                if (id) {
+                    const vol = volStr ? parseFloat(volStr) : 1.0;
+                    selectedProfiles.set(id, vol);
+                    
+                    const btn = document.getElementById(`btn-${id}`);
+                    const card = document.getElementById(`card-${id}`);
+                    if (btn) btn.classList.add('active');
+                    if (card) {
+                        card.classList.add('active');
+                        const slider = card.querySelector('.layer-vol-slider');
+                        if (slider) slider.value = Math.round(vol * 100);
+                        const lbl = document.getElementById(`vol-lbl-${id}`);
+                        if (lbl) lbl.innerText = `${Math.round(vol * 100)}%`;
+                    }
+                }
+            });
+
+            if (params.has('vol')) {
+                const v = params.get('vol');
+                document.getElementById('vol-slider').value = v;
+                document.getElementById('vol-val').innerText = `${v}%`;
+            }
+            if (params.has('filter')) {
+                const f = params.get('filter');
+                document.getElementById('filter-slider').value = f;
+                updateFilter();
+            }
+            if (params.has('jitter')) {
+                const j = params.get('jitter');
+                document.getElementById('jitter-slider').value = j;
+                updateJitter();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderUI();
+            loadURLConfig();
+            drawVisualizer();
+        });
+    </script>
+</body>
+</html>

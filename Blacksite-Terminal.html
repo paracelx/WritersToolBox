@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black Site Terminal</title>
+    <style>
+        body { 
+            margin: 0; padding: 0; background-color: #050505; color: #ffb000; 
+            font-family: 'Courier New', Courier, monospace; 
+            height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+            text-shadow: 0 0 5px rgba(255, 176, 0, 0.3);
+        }
+        
+        /* CRT Scanline Overlay */
+        .crt-scanlines::before {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 100; background-size: 100% 2px, 3px 100%; pointer-events: none;
+        }
+
+        /* CRT Curved Monitor & Vignette Effect */
+        .crt-curved {
+            position: relative;
+            box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.9);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .crt-curved::after {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: radial-gradient(circle at center, transparent 60%, rgba(0, 0, 0, 0.85) 100%);
+            pointer-events: none; z-index: 101;
+        }
+
+        .hud {
+            display: flex; justify-content: space-between; padding: 8px 20px; 
+            border-bottom: 1px solid #ffb000; font-weight: bold; background: #0a0a0a; z-index: 10;
+            flex-wrap: wrap; gap: 10px; align-items: center; font-size: 0.85em;
+        }
+        .hud-left, .hud-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        
+        .credit-tag {
+            font-size: 0.75em; color: #888; border-left: 1px solid #333; padding-left: 10px;
+        }
+        .credit-tag a { color: #ffb000; text-decoration: none; }
+        .credit-tag a:hover { text-decoration: underline; }
+
+        /* Tooltip Container (Strictly Displayed Below) */
+        .tooltip-wrap {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip-wrap .tooltip-text {
+            visibility: hidden;
+            width: 210px;
+            background-color: #000;
+            color: #ffb000;
+            text-align: center;
+            border: 1px solid #ffb000;
+            border-radius: 4px;
+            padding: 6px;
+            position: absolute;
+            z-index: 500;
+            top: 135%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 0.75em;
+            font-weight: normal;
+            box-shadow: 0 0 10px rgba(255, 176, 0, 0.2);
+            pointer-events: none;
+        }
+        .tooltip-wrap:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        button {
+            background: transparent; border: 1px solid #ffb000; color: #ffb000;
+            padding: 4px 10px; font-family: inherit; font-weight: bold; cursor: pointer;
+            text-transform: uppercase; font-size: 0.8em; transition: 0.2s;
+        }
+        button:hover { background: #ffb000; color: #000; }
+        button.active-toggle { background: #f44336; border-color: #f44336; color: #fff; text-shadow: none; }
+        button.active-toggle-green { background: #4CAF50; border-color: #4CAF50; color: #fff; text-shadow: none; }
+
+        .editor-container { flex-grow: 1; padding: 20px; max-width: 900px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        
+        textarea {
+            width: 100%; height: 100%; background: transparent; border: none; color: inherit;
+            font-family: inherit; font-size: 18px; line-height: 1.6; resize: none; outline: none;
+            transition: opacity 2s ease-in-out, filter 2s ease-in-out, color 0.3s ease;
+        }
+
+        /* Phosphor Ghosting Trail Effect */
+        .phosphor-glow {
+            animation: phosphorFlash 0.4s ease-out;
+        }
+        @keyframes phosphorFlash {
+            0% { color: #fff; text-shadow: 0 0 12px #fff, 0 0 25px #ffb000; }
+            100% { color: #ffb000; text-shadow: 0 0 5px rgba(255, 176, 0, 0.3); }
+        }
+
+        /* Hardcore Mode Penalties & Blind Fire */
+        .glitch-warning { filter: drop-shadow(2px 0px red) drop-shadow(-2px 0px blue); }
+        .fade-out { opacity: 0.05; filter: blur(2px); }
+        .blind-fire { color: #050505 !important; text-shadow: none !important; }
+
+        /* BIOS Boot Screen */
+        .boot-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100vh;
+            background: #000; z-index: 300; padding: 40px; box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace; color: #ffb000; font-size: 14px;
+            line-height: 1.5; overflow: hidden; white-space: pre-wrap;
+        }
+
+        .setup-modal {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: #000; border: 2px solid #ffb000; padding: 25px; z-index: 200; width: 420px; box-sizing: border-box;
+        }
+        .setup-modal input[type="number"] {
+            background: transparent; border: 1px solid #ffb000; color: #ffb000; padding: 8px;
+            width: 70px; font-family: inherit; font-size: 16px; margin-right: 10px;
+        }
+        .setup-modal select {
+            background: #111; border: 1px solid #ffb000; color: #ffb000; padding: 8px;
+            width: 100%; font-family: inherit; font-size: 14px; margin-top: 5px; margin-bottom: 15px; box-sizing: border-box;
+        }
+        .checkbox-label {
+            display: flex; align-items: center; gap: 8px; font-size: 0.85em; margin-bottom: 6px; cursor: pointer; color: #ccc;
+        }
+        .checkbox-label input { accent-color: #ffb000; width: 16px; height: 16px; }
+    </style>
+</head>
+<body id="main-body" class="crt-scanlines crt-curved">
+
+    <!-- BIOS BOOT SCREEN -->
+    <div class="boot-screen" id="boot-screen"></div>
+
+    <!-- INITIALIZATION SETUP MODAL -->
+    <div class="setup-modal" id="setup-modal" style="display:none;">
+        <h3 style="margin-top:0;">INITIALIZE TERMINAL</h3>
+        <p style="font-size: 0.85em; color: #888; margin-top: -5px; margin-bottom: 12px;">
+            D.W. Garrett | <a href="mailto:dwgarrett.creative@outlook.com" style="color: #ffb000;">dwgarrett.creative@outlook.com</a>
+        </p>
+        
+        <div style="display: flex; gap: 15px; margin-bottom: 12px;">
+            <div style="flex: 1;">
+                <p style="margin: 0 0 5px 0; font-size: 0.85em; color: #aaa;">Sprint Timer (Mins):</p>
+                <input type="number" id="timer-input" value="20" min="1">
+            </div>
+            <div style="flex: 1.5;">
+                <p style="margin: 0 0 5px 0; font-size: 0.85em; color: #aaa;">Hardcore Idle Speed:</p>
+                <select id="hardcore-speed-select">
+                    <option value="10">Standard (10s warning / 15s fade)</option>
+                    <option value="20">Relaxed (20s warning / 30s fade)</option>
+                    <option value="30">Deep Focus (30s warning / 45s fade)</option>
+                </select>
+            </div>
+        </div>
+
+        <p style="margin: 0 0 5px 0; font-size: 0.85em; color: #aaa;">System Preferences:</p>
+        <label class="checkbox-label"><input type="checkbox" id="pref-boot" checked> Play BIOS Boot Sequence</label>
+        <label class="checkbox-label"><input type="checkbox" id="pref-phosphor" checked> Enable Phosphor Ghosting Trail</label>
+        <label class="checkbox-label"><input type="checkbox" id="pref-ambient"> Enable Ambient Cosmic Static</label>
+        <label class="checkbox-label"><input type="checkbox" id="pref-key-audio"> Enable Key-Audio Clacks</label>
+
+        <button style="width:100%; padding:10px; margin-top: 10px;" onclick="startSession()">BOOT SYSTEM</button>
+        <button style="width:100%; padding:10px; margin-top:8px; border-color:#444; color:#888;" onclick="skipSetup()">SKIP (JUST WRITE)</button>
+    </div>
+
+    <!-- ACTIVE HUD -->
+    <div class="hud" style="display:none;" id="hud">
+        <div class="hud-left">
+            <span id="word-count">WORDS: 0</span>
+            <span id="wpm-display" style="color: #7289da;">WPM: 0</span>
+            <span id="timer-display" style="color: #4CAF50;">T-MINUS: 00:00</span>
+            <span class="credit-tag">D.W. Garrett | <a href="mailto:dwgarrett.creative@outlook.com">dwgarrett.creative@outlook.com</a></span>
+        </div>
+        <div class="hud-right">
+            <div class="tooltip-wrap">
+                <button id="scan-btn" onclick="toggleScanlines()">SCANLINES: ON</button>
+                <span class="tooltip-text">Toggles vintage horizontal CRT monitor scanline lines across the screen.</span>
+            </div>
+            <div class="tooltip-wrap">
+                <button id="crt-btn" onclick="toggleCRT()">CRT CURVE: ON</button>
+                <span class="tooltip-text">Toggles curved tube monitor distortion edges and corner vignette shadows.</span>
+            </div>
+            <div class="tooltip-wrap">
+                <button id="phosphor-btn" onclick="togglePhosphor()">PHOSPHOR: ON</button>
+                <span class="tooltip-text">Toggles the bright white-amber afterglow flare when keys are pressed.</span>
+            </div>
+            <div class="tooltip-wrap">
+                <button id="ambient-btn" onclick="toggleAmbient()">AMBIENT: OFF</button>
+                <span class="tooltip-text">Toggles background analog radio static and deep-space audio hiss.</span>
+            </div>
+            <div class="tooltip-wrap">
+                <button id="blind-btn" onclick="toggleBlindFire()">BLIND: OFF</button>
+                <span class="tooltip-text">Hides text as you type so you cannot edit or look back mid-sprint.</span>
+            </div>
+            <div class="tooltip-wrap">
+                <button id="audio-btn" onclick="toggleAudio()">KEY-AUDIO: OFF</button>
+                <span class="tooltip-text">Toggles synthetic mechanical keyboard clack sounds on every keystroke.</span>
+            </div>
+            <div class="tooltip-wrap">
+                <button id="hardcore-btn" onclick="toggleHardcore()">HARDCORE: OFF</button>
+                <span class="tooltip-text">Enables the idle penalty: stops writing and your text glitches and fades out!</span>
+            </div>
+            <div class="tooltip-wrap">
+                <button onclick="copyToScrivener()">COPY</button>
+                <span class="tooltip-text">Extracts and copies your complete manuscript buffer to the clipboard.</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="editor-container" style="display:none;" id="editor-container">
+        <textarea id="terminal-editor" spellcheck="false" placeholder="Awaiting input..."></textarea>
+    </div>
+
+    <script>
+        let wordCountEl = document.getElementById('word-count');
+        let wpmDisplay = document.getElementById('wpm-display');
+        let editor = document.getElementById('terminal-editor');
+        let timerDisplay = document.getElementById('timer-display');
+        
+        let hardcoreBtn = document.getElementById('hardcore-btn');
+        let blindBtn = document.getElementById('blind-btn');
+        let audioBtn = document.getElementById('audio-btn');
+        let scanBtn = document.getElementById('scan-btn');
+        let crtBtn = document.getElementById('crt-btn');
+        let phosphorBtn = document.getElementById('phosphor-btn');
+        let ambientBtn = document.getElementById('ambient-btn');
+        let mainBody = document.getElementById('main-body');
+        
+        let sprintTimeRemaining = 0;
+        let timerInterval;
+        let idleTime = 0;
+        let idleInterval;
+        let isHardcore = false;
+        let isBlind = false;
+        let isAudio = false;
+        let isScanlines = true;
+        let isCRT = true;
+        let isPhosphor = true;
+        let isAmbient = false;
+        let playBoot = true;
+
+        let warningThreshold = 10;
+        let fadeThreshold = 15;
+
+        let audioCtx = null;
+        let ambientNode = null;
+        let ambientGain = null;
+
+        let sessionStartTime = null;
+        let initialWordCount = 0;
+
+        const bootLines = [
+            "INITIALIZING GARRETT'S BLACK SITE TERMINAL v4.5...",
+            "[OK] Loading Core Kernel & Memory Routines...",
+            "[OK] Mounting Local Vault Storage (localStorage)...",
+            "[OK] Calibrating CRT Phosphor Grid & Scanline Overlays...",
+            "[OK] Establishing Secure Datalink: dwgarrett.creative@outlook.com...",
+            "[OK] Syncing Manuscript Parameters: THE EIGHT-LEGGED COVENANT...",
+            "SYSTEM READY. AWAITING OPERATOR INPUT..."
+        ];
+
+        window.onload = function() {
+            const saved = localStorage.getItem('garrettBlackSiteCache');
+            if (saved) {
+                editor.value = saved;
+                initialWordCount = getWordCount(saved);
+                updateWordCount();
+            }
+
+            runBootSequence();
+        };
+
+        function runBootSequence() {
+            const bootScreen = document.getElementById('boot-screen');
+            let lineIdx = 0;
+            
+            let bootInterval = setInterval(() => {
+                if (lineIdx < bootLines.length) {
+                    bootScreen.innerText += bootLines[lineIdx] + "\n";
+                    lineIdx++;
+                } else {
+                    clearInterval(bootInterval);
+                    setTimeout(() => {
+                        bootScreen.style.display = 'none';
+                        document.getElementById('setup-modal').style.display = 'block';
+                    }, 1200);
+                }
+            }, 550);
+        }
+
+        function startSession() {
+            playBoot = document.getElementById('pref-boot').checked;
+            isPhosphor = document.getElementById('pref-phosphor').checked;
+            isAmbient = document.getElementById('pref-ambient').checked;
+            isAudio = document.getElementById('pref-key-audio').checked;
+
+            const selectedSpeed = parseInt(document.getElementById('hardcore-speed-select').value);
+            warningThreshold = selectedSpeed;
+            fadeThreshold = selectedSpeed + 5;
+
+            if (!isPhosphor) {
+                phosphorBtn.innerText = "PHOSPHOR: OFF";
+                phosphorBtn.classList.add('active-toggle');
+            }
+
+            if (isAmbient) {
+                ambientBtn.innerText = "AMBIENT: ON";
+                ambientBtn.classList.add('active-toggle-green');
+            }
+
+            if (isAudio) {
+                audioBtn.innerText = "KEY-AUDIO: ON";
+                audioBtn.classList.add('active-toggle-green');
+            }
+
+            const mins = parseInt(document.getElementById('timer-input').value);
+            if (mins > 0) {
+                sprintTimeRemaining = mins * 60;
+                updateTimerDisplay();
+                timerInterval = setInterval(countdown, 1000);
+            }
+            closeSetup();
+        }
+
+        function skipSetup() {
+            document.getElementById('pref-boot').checked = false;
+            startSession();
+        }
+
+        function closeSetup() {
+            document.getElementById('boot-screen').style.display = 'none';
+            document.getElementById('setup-modal').style.display = 'none';
+            document.getElementById('hud').style.display = 'flex';
+            document.getElementById('editor-container').style.display = 'block';
+            editor.focus();
+            
+            sessionStartTime = Date.now();
+            initialWordCount = getWordCount(editor.value);
+            
+            idleInterval = setInterval(checkIdle, 1000);
+            setInterval(updateWPM, 2000);
+
+            if (isAmbient) {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                startAmbientStatic();
+            }
+            if (isAudio && !audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function countdown() {
+            if (sprintTimeRemaining <= 0) {
+                clearInterval(timerInterval);
+                timerDisplay.innerText = "SPRINT COMPLETE";
+                timerDisplay.style.color = "#ffb000";
+                return;
+            }
+            sprintTimeRemaining--;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            let m = Math.floor(sprintTimeRemaining / 60).toString().padStart(2, '0');
+            let s = (sprintTimeRemaining % 60).toString().padStart(2, '0');
+            timerDisplay.innerText = `T-MINUS: ${m}:${s}`;
+        }
+
+        function toggleScanlines() {
+            isScanlines = !isScanlines;
+            if (isScanlines) {
+                scanBtn.innerText = "SCANLINES: ON";
+                scanBtn.classList.remove('active-toggle');
+                mainBody.classList.add('crt-scanlines');
+            } else {
+                scanBtn.innerText = "SCANLINES: OFF";
+                scanBtn.classList.add('active-toggle');
+                mainBody.classList.remove('crt-scanlines');
+            }
+        }
+
+        function toggleCRT() {
+            isCRT = !isCRT;
+            if (isCRT) {
+                crtBtn.innerText = "CRT CURVE: ON";
+                crtBtn.classList.remove('active-toggle');
+                mainBody.classList.add('crt-curved');
+            } else {
+                crtBtn.innerText = "CRT CURVE: OFF";
+                crtBtn.classList.add('active-toggle');
+                mainBody.classList.remove('crt-curved');
+            }
+        }
+
+        function togglePhosphor() {
+            isPhosphor = !isPhosphor;
+            if (isPhosphor) {
+                phosphorBtn.innerText = "PHOSPHOR: ON";
+                phosphorBtn.classList.remove('active-toggle');
+            } else {
+                phosphorBtn.innerText = "PHOSPHOR: OFF";
+                phosphorBtn.classList.add('active-toggle');
+            }
+        }
+
+        function toggleAmbient() {
+            isAmbient = !isAmbient;
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            if (isAmbient) {
+                ambientBtn.innerText = "AMBIENT: ON";
+                ambientBtn.classList.add('active-toggle-green');
+                startAmbientStatic();
+            } else {
+                ambientBtn.innerText = "AMBIENT: OFF";
+                ambientBtn.classList.remove('active-toggle-green');
+                stopAmbientStatic();
+            }
+        }
+
+        function toggleHardcore() {
+            isHardcore = !isHardcore;
+            if (isHardcore) {
+                hardcoreBtn.innerText = "HARDCORE: ON";
+                hardcoreBtn.classList.add('active-toggle');
+                idleTime = 0;
+            } else {
+                hardcoreBtn.innerText = "HARDCORE: OFF";
+                hardcoreBtn.classList.remove('active-toggle');
+                editor.classList.remove('glitch-warning', 'fade-out');
+            }
+        }
+
+        function toggleBlindFire() {
+            isBlind = !isBlind;
+            if (isBlind) {
+                blindBtn.innerText = "BLIND: ON";
+                blindBtn.classList.add('active-toggle-green');
+                editor.classList.add('blind-fire');
+            } else {
+                blindBtn.innerText = "BLIND: OFF";
+                blindBtn.classList.remove('active-toggle-green');
+                editor.classList.remove('blind-fire');
+            }
+        }
+
+        function toggleAudio() {
+            isAudio = !isAudio;
+            if (isAudio) {
+                audioBtn.innerText = "KEY-AUDIO: ON";
+                audioBtn.classList.add('active-toggle-green');
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            } else {
+                audioBtn.innerText = "KEY-AUDIO: OFF";
+                audioBtn.classList.remove('active-toggle-green');
+            }
+        }
+
+        function playKeyClick() {
+            if (!isAudio || !audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(120 + Math.random() * 80, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.04);
+        }
+
+        function playGlitchSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const glitchType = Math.floor(Math.random() * 5);
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            const now = audioCtx.currentTime;
+
+            if (glitchType === 0) {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300 + Math.random() * 200, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.18);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+            } else if (glitchType === 1) {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.setValueAtTime(450, now + 0.05);
+                osc.frequency.setValueAtTime(200, now + 0.1);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            } else if (glitchType === 2) {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(80 + Math.random() * 60, now);
+                osc.frequency.linearRampToValueAtTime(120, now + 0.2);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            } else if (glitchType === 3) {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880 + Math.random() * 300, now);
+                osc.frequency.exponentialRampToValueAtTime(220, now + 0.12);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            } else {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(110, now);
+                osc.frequency.setValueAtTime(330, now + 0.04);
+                osc.frequency.setValueAtTime(88, now + 0.09);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+            }
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.2);
+        }
+
+        function startAmbientStatic() {
+            if (!audioCtx) return;
+            const bufferSize = 2 * audioCtx.sampleRate;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+
+            ambientNode = audioCtx.createBufferSource();
+            ambientNode.buffer = noiseBuffer;
+            ambientNode.loop = true;
+
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(350, audioCtx.currentTime);
+
+            ambientGain = audioCtx.createGain();
+            ambientGain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+
+            ambientNode.connect(filter);
+            filter.connect(ambientGain);
+            ambientGain.connect(audioCtx.destination);
+            ambientNode.start();
+        }
+
+        function stopAmbientStatic() {
+            if (ambientNode) {
+                ambientNode.stop();
+                ambientNode.disconnect();
+                ambientNode = null;
+            }
+        }
+
+        editor.addEventListener('keydown', (e) => {
+            playKeyClick();
+            
+            if (isPhosphor) {
+                editor.classList.remove('phosphor-glow');
+                void editor.offsetWidth;
+                editor.classList.add('phosphor-glow');
+            }
+        });
+
+        editor.addEventListener('input', () => {
+            updateWordCount();
+            localStorage.setItem('garrettBlackSiteCache', editor.value);
+            
+            idleTime = 0;
+            if (isHardcore) {
+                editor.classList.remove('glitch-warning', 'fade-out');
+            }
+        });
+
+        function getWordCount(text) {
+            const trimmed = text.trim();
+            return trimmed ? trimmed.split(/\s+/).length : 0;
+        }
+
+        function updateWordCount() {
+            const words = getWordCount(editor.value);
+            wordCountEl.innerText = `WORDS: ${words}`;
+        }
+
+        function updateWPM() {
+            if (!sessionStartTime) return;
+            const currentWords = getWordCount(editor.value);
+            const netTyped = Math.max(0, currentWords - initialWordCount);
+            const minutesElapsed = (Date.now() - sessionStartTime) / 60000;
+            
+            const wpm = minutesElapsed > 0 ? Math.round(netTyped / minutesElapsed) : 0;
+            wpmDisplay.innerText = `WPM: ${wpm}`;
+        }
+
+        function checkIdle() {
+            if (!isHardcore || editor.value.trim() === '') return;
+            idleTime++;
+            
+            if (idleTime === warningThreshold) {
+                editor.classList.add('glitch-warning');
+                playGlitchSound();
+            } else if (idleTime >= fadeThreshold) {
+                editor.classList.add('fade-out');
+            }
+        }
+
+        function copyToScrivener() {
+            editor.select();
+            navigator.clipboard.writeText(editor.value).then(() => {
+                const btn = document.querySelector('.hud-right .tooltip-wrap:last-child button');
+                const originalText = btn.innerText;
+                btn.innerText = "EXTRACTED!";
+                btn.style.background = "#4CAF50";
+                btn.style.color = "#fff";
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.style.background = "transparent";
+                    btn.style.color = "#ffb000";
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

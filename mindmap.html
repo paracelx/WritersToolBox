@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garrett's Omni-Mindmap</title>
+    <!-- Tailwind via CDN for standalone use -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { 
+            --retro-bg: #050505; 
+            --retro-amber: #ffb000; 
+            --retro-border: #ffb000; 
+        }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Courier New', Courier, monospace; 
+            background-color: var(--retro-bg); 
+            color: var(--retro-amber); 
+            height: 100vh; 
+            overflow: hidden; 
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 8px; height: 8px; } 
+        ::-webkit-scrollbar-track { background: #050505; } 
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; } 
+        ::-webkit-scrollbar-thumb:hover { background: var(--retro-amber); }
+
+        /* Buttons & Ribbon */
+        button.ribbon-btn { background: #111; border: 1px solid var(--retro-border); color: var(--retro-amber); padding: 4px 10px; font-family: inherit; font-size: 0.8em; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 3px; transition: 0.15s; }
+        button.ribbon-btn:hover { background: var(--retro-amber); color: #000; }
+        button.active-toggle { background: #f44336 !important; border-color: #f44336 !important; color: #fff !important; text-shadow: none; }
+
+        /* Corkboard */
+        .corkboard-bg { background: #1a1510; background-image: radial-gradient(#2a2015 15%, transparent 16%), radial-gradient(#2a2015 15%, transparent 16%); background-size: 20px 20px; position: relative; }
+        
+        .mindmap-node { position: absolute; width: 220px; background: #fdf6e3; color: #111; border-radius: 4px; box-shadow: 3px 6px 15px rgba(0,0,0,0.6); user-select: none; z-index: 10; cursor: move; border: 2px solid #333; transition: box-shadow 0.15s, border-color 0.15s; }
+        .mindmap-node.selected-node { border-color: #ffb000 !important; box-shadow: 0 0 15px rgba(255,176,0,0.8); z-index: 50; }
+        .mindmap-node.linking-source { border-color: #ef4444 !important; animation: pulseLink 1s infinite alternate; }
+        
+        @keyframes pulseLink { from { box-shadow: 0 0 5px #ef4444; } to { box-shadow: 0 0 18px #ef4444; } }
+        
+        .mindmap-node::before { content: ''; position: absolute; top: -6px; left: 50%; transform: translateX(-50%); width: 14px; height: 14px; background: #d32f2f; border-radius: 50%; box-shadow: inset -1px -1px 3px rgba(0,0,0,0.6); z-index: 12; pointer-events: none;}
+        
+        .mindmap-header { border-bottom: 1px solid rgba(0,0,0,0.2); font-weight: bold; font-family: sans-serif; padding: 8px 10px 4px 10px; display: flex; justify-content: space-between; align-items: center; border-radius: 2px 2px 0 0;}
+        
+        /* Modals */
+        .custom-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+        .custom-modal.active { display: flex; }
+        .modal-content { background: #050505; border: 2px solid var(--retro-amber); padding: 25px; width: 400px; max-width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 0 30px rgba(255, 176, 0, 0.2); }
+        .char-input { width: 100%; background: #0a0a0a; border: 1px solid #333; color: #fff; padding: 6px; font-family: inherit; border-radius: 3px; outline: none; margin-bottom: 12px; font-size: 0.85em; }
+        .char-input:focus { border-color: var(--retro-amber); }
+    </style>
+</head>
+<body>
+
+    <!-- Header / Toolbar -->
+    <header class="bg-black border-b border-[#ffb000] px-4 py-2 flex justify-between items-center text-xs font-bold shrink-0 select-none z-40 relative">
+        <div class="flex items-center space-x-3">
+            <span class="tracking-wider text-white">GARRETT'S <span class="text-[#ffb000]">OMNI-MINDMAP</span></span>
+            <span class="text-gray-600">|</span>
+            <span id="corkboard-status-badge" class="text-2xs text-gray-400 font-mono bg-[#111] border border-gray-800 px-2 py-0.5 rounded">DRAG CARDS TO REPOSITION OR PAN CANVAS</span>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button class="ribbon-btn border-green-500 text-green-400" onclick="openNodeModal()">+ New Concept Card</button>
+            <button class="ribbon-btn border-red-500 text-red-400" id="cb-link-btn" onclick="toggleLinkMode()">Link Threads: OFF</button>
+            <button class="ribbon-btn border-blue-500 text-blue-400" onclick="autoArrangeGrid()">Auto-Grid Layout</button>
+            <button class="ribbon-btn border-gray-600 text-gray-400" onclick="clearAllLinks()">Clear Links</button>
+            <span class="text-gray-600 px-1">|</span>
+            <button class="ribbon-btn border-yellow-500 text-yellow-400" onclick="exportMindmap()">Export JSON 💾</button>
+            <input type="file" id="import-json-input" accept=".json" class="hidden" onchange="importMindmap(event)">
+            <button class="ribbon-btn border-yellow-500 text-yellow-400" onclick="document.getElementById('import-json-input').click()">Import JSON 📂</button>
+        </div>
+    </header>
+
+    <!-- Corkboard Canvas -->
+    <main id="corkboard-canvas" class="flex-grow corkboard-bg relative overflow-auto cursor-default">
+        <!-- SVG layer for connection lines -->
+        <svg id="corkboard-svg" class="absolute top-0 left-0 w-full h-full pointer-events-none z-0" style="min-width: 4000px; min-height: 4000px;"></svg>
+    </main>
+
+    <!-- Add Node Modal -->
+    <div id="add-node-modal" class="custom-modal select-none">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                <h2 class="text-yellow-400 font-bold text-lg uppercase">Add Concept Node</h2>
+                <button class="text-gray-500 hover:text-white" onclick="closeModal('add-node-modal')">✕</button>
+            </div>
+            
+            <label class="text-2xs text-gray-400 font-bold uppercase mb-1 block">Title / Concept Name</label>
+            <input type="text" id="node-title-input" class="char-input" placeholder="e.g., The Third Signal">
+            
+            <label class="text-2xs text-gray-400 font-bold uppercase mb-1 block">Node Color Category</label>
+            <select id="node-color-input" class="char-input">
+                <option value="#f5ebd0">Default Cream (General)</option>
+                <option value="#fca5a5">Entity Red (Threats/Horror)</option>
+                <option value="#93c5fd">Lore Blue (Clues/History)</option>
+                <option value="#bbf7d0">Location Green (Settings)</option>
+            </select>
+
+            <div class="flex space-x-2 mt-4">
+                <button class="flex-1 ribbon-btn border-gray-500 text-gray-400 py-2" onclick="closeModal('add-node-modal')">Cancel</button>
+                <button class="flex-1 ribbon-btn border-[#4CAF50] text-[#4CAF50] py-2" onclick="confirmAddNode()">Add Node</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal for Deletions -->
+    <div id="confirm-modal" class="custom-modal select-none">
+        <div class="modal-content text-center w-80">
+            <h2 id="confirm-modal-message" class="text-white font-bold text-base mb-6">Are you sure?</h2>
+            <div class="flex space-x-4 justify-center">
+                <button class="px-6 py-2 ribbon-btn border-gray-500 text-gray-400" onclick="closeModal('confirm-modal')">Cancel</button>
+                <button class="px-6 py-2 ribbon-btn border-red-500 text-red-500 font-bold" id="confirm-modal-yes">Yes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        let corkboardData = { nodes: [], links: [] };
+        
+        let isLinkMode = false; 
+        let linkSourceId = null; 
+        
+        // Dragging State
+        let activeDraggedNodeId = null; 
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        
+        // Panning State
+        let isPanning = false;
+        let startPanX = 0;
+        let startPanY = 0;
+
+        const canvas = document.getElementById('corkboard-canvas');
+
+        // --- Initialization ---
+        window.onload = function() {
+            loadFromStorage();
+            renderCanvas();
+            
+            // Background Canvas Panning Listeners
+            canvas.addEventListener('mousedown', (e) => {
+                // Only pan if clicking on the background or SVG directly
+                if (e.target === canvas || e.target.id === 'corkboard-svg') {
+                    isPanning = true;
+                    startPanX = e.clientX;
+                    startPanY = e.clientY;
+                    canvas.style.cursor = 'grabbing';
+                }
+            });
+
+            window.addEventListener('mousemove', handleGlobalMouseMove);
+            window.addEventListener('mouseup', handleGlobalMouseUp);
+        };
+
+        // --- Rendering ---
+        function renderCanvas() {
+            // Clear existing DOM nodes (keep SVG)
+            const existingNodes = canvas.querySelectorAll('.mindmap-node'); 
+            existingNodes.forEach(n => n.remove());
+            
+            corkboardData.nodes.forEach(node => {
+                const el = document.createElement('div'); 
+                el.id = `cb-node-${node.id}`; 
+                el.className = `mindmap-node ${linkSourceId === node.id ? 'linking-source' : ''}`; 
+                el.style.left = `${node.x || 100}px`; 
+                el.style.top = `${node.y || 100}px`;
+                
+                const headerColor = node.color || '#f5ebd0';
+
+                el.innerHTML = `
+                    <div class="mindmap-header" style="background-color: ${headerColor};">
+                        <span class="truncate text-xs text-gray-900 pr-2">${node.title}</span>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button class="text-red-700 hover:text-black font-bold text-xs px-1" title="Link Thread" onclick="selectNodeForLink('${node.id}', event)">🔗</button>
+                            <button class="text-gray-500 hover:text-red-600 font-bold text-xs px-1" title="Delete Node" onclick="deleteNode('${node.id}', event)">✕</button>
+                        </div>
+                    </div>
+                    <div class="p-2 flex flex-col h-32">
+                        <textarea class="w-full h-full bg-transparent border-none outline-none resize-none font-mono text-xs text-gray-800" placeholder="Type notes here..." onchange="updateNodeText('${node.id}', this.value)">${node.text || ''}</textarea>
+                    </div>
+                `;
+                
+                el.addEventListener('mousedown', (e) => startNodeDrag(e, node.id)); 
+                canvas.appendChild(el);
+            }); 
+            
+            drawLinks();
+        }
+
+        function drawLinks() {
+            const svg = document.getElementById('corkboard-svg'); 
+            svg.innerHTML = ''; 
+            
+            if (!corkboardData.links) return;
+            
+            corkboardData.links.forEach(link => { 
+                const nodeA = corkboardData.nodes.find(n => n.id === link.from); 
+                const nodeB = corkboardData.nodes.find(n => n.id === link.to); 
+                
+                if (nodeA && nodeB) { 
+                    // Calculate center-top of the node header for line connection
+                    const x1 = (nodeA.x || 0) + 110; 
+                    const y1 = (nodeA.y || 0) + 15; 
+                    const x2 = (nodeB.x || 0) + 110; 
+                    const y2 = (nodeB.y || 0) + 15; 
+                    
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line'); 
+                    line.setAttribute('x1', x1); 
+                    line.setAttribute('y1', y1); 
+                    line.setAttribute('x2', x2); 
+                    line.setAttribute('y2', y2); 
+                    line.setAttribute('stroke', '#ef4444'); 
+                    line.setAttribute('stroke-width', '2.5'); 
+                    line.setAttribute('stroke-dasharray', '4 2'); 
+                    line.setAttribute('opacity', '0.85'); 
+                    svg.appendChild(line); 
+                } 
+            });
+        }
+
+        // --- Interaction Logic ---
+        function openNodeModal() {
+            document.getElementById('node-title-input').value = '';
+            document.getElementById('add-node-modal').classList.add('active');
+            setTimeout(() => document.getElementById('node-title-input').focus(), 50);
+        }
+
+        function confirmAddNode() {
+            const title = document.getElementById('node-title-input').value.trim();
+            const color = document.getElementById('node-color-input').value;
+            if (!title) return;
+            
+            // Drop in center of current viewport
+            const dropX = canvas.scrollLeft + (canvas.clientWidth / 2) - 110;
+            const dropY = canvas.scrollTop + (canvas.clientHeight / 2) - 80;
+
+            corkboardData.nodes.push({ 
+                id: 'cb_node_' + Date.now(), 
+                title: title, 
+                text: '', 
+                color: color,
+                x: dropX, 
+                y: dropY 
+            });
+            
+            closeModal('add-node-modal');
+            saveToStorage(); 
+            renderCanvas(); 
+        }
+
+        function updateNodeText(id, text) { 
+            const node = corkboardData.nodes.find(n => n.id === id); 
+            if (node) { node.text = text; saveToStorage(); } 
+        }
+
+        function deleteNode(id, event) { 
+            if (event) event.stopPropagation(); 
+            openConfirmModal("Remove this card from the mindmap?", () => { 
+                corkboardData.nodes = corkboardData.nodes.filter(n => n.id !== id); 
+                corkboardData.links = corkboardData.links.filter(l => l.from !== id && l.to !== id); 
+                saveToStorage(); 
+                renderCanvas(); 
+            }); 
+        }
+
+        function autoArrangeGrid() { 
+            if (corkboardData.nodes.length === 0) return; 
+            let startX = 60, startY = 60; 
+            corkboardData.nodes.forEach((node, idx) => { 
+                const col = idx % 5; 
+                const row = Math.floor(idx / 5); 
+                node.x = startX + (col * 260); 
+                node.y = startY + (row * 190); 
+            }); 
+            saveToStorage(); 
+            renderCanvas(); 
+        }
+
+        // --- Link Logic ---
+        function toggleLinkMode() { 
+            isLinkMode = !isLinkMode; 
+            linkSourceId = null; 
+            
+            const btn = document.getElementById('cb-link-btn'); 
+            const badge = document.getElementById('corkboard-status-badge'); 
+            
+            if (isLinkMode) { 
+                btn.innerText = "Link Threads: ON"; 
+                btn.classList.add('active-toggle'); 
+                badge.innerText = "CLICK FIRST NODE, THEN SECOND NODE TO LINK THREAD"; 
+                badge.classList.replace('text-gray-400', 'text-red-400');
+            } else { 
+                btn.innerText = "Link Threads: OFF"; 
+                btn.classList.remove('active-toggle'); 
+                badge.innerText = "DRAG CARDS TO REPOSITION OR PAN CANVAS"; 
+                badge.classList.replace('text-red-400', 'text-gray-400');
+            } 
+            renderCanvas(); 
+        }
+
+        function selectNodeForLink(nodeId, event) {
+            if (event) event.stopPropagation();
+            
+            // Only allow linking if the master switch is on OR they clicked the link icon
+            if (!isLinkMode) {
+                isLinkMode = true; // Auto-engage mode if they clicked the link icon directly
+                toggleLinkMode(); // Call it twice effectively to sync UI, quick hack
+                isLinkMode = true;
+                document.getElementById('cb-link-btn').innerText = "Link Threads: ON";
+                document.getElementById('cb-link-btn').classList.add('active-toggle');
+                document.getElementById('corkboard-status-badge').innerText = "CLICK SECOND NODE TO COMPLETE LINK";
+            }
+
+            if (!linkSourceId) { 
+                linkSourceId = nodeId; 
+                document.getElementById('corkboard-status-badge').innerText = "SELECT SECOND NODE TO COMPLETE LINK...";
+                renderCanvas(); 
+            } else if (linkSourceId === nodeId) { 
+                linkSourceId = null; // Cancel if clicked same node
+                renderCanvas(); 
+            } else {
+                const linkExists = corkboardData.links.some(l => (l.from === linkSourceId && l.to === nodeId) || (l.from === nodeId && l.to === linkSourceId));
+                if (!linkExists) { 
+                    corkboardData.links.push({ id: 'link_' + Date.now(), from: linkSourceId, to: nodeId }); 
+                }
+                linkSourceId = null; 
+                saveToStorage(); 
+                renderCanvas();
+            }
+        }
+
+        function clearAllLinks() { 
+            openConfirmModal("Clear all red thread connection links?", () => { 
+                corkboardData.links = []; 
+                saveToStorage(); 
+                renderCanvas(); 
+            }); 
+        }
+
+        // --- Drag and Drop / Panning Logic ---
+        function startNodeDrag(e, nodeId) { 
+            // Ignore drags starting on textareas or buttons
+            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return; 
+            
+            if (isLinkMode) { selectNodeForLink(nodeId, e); return; } 
+            
+            activeDraggedNodeId = nodeId; 
+            const nodeEl = document.getElementById(`cb-node-${nodeId}`); 
+            if (!nodeEl) return; 
+            
+            const rect = nodeEl.getBoundingClientRect(); 
+            dragOffsetX = e.clientX - rect.left; 
+            dragOffsetY = e.clientY - rect.top; 
+            nodeEl.classList.add('selected-node'); 
+        }
+
+        function handleGlobalMouseMove(e) { 
+            // Handle Panning
+            if (isPanning) {
+                const dx = e.clientX - startPanX;
+                const dy = e.clientY - startPanY;
+                canvas.scrollLeft -= dx;
+                canvas.scrollTop -= dy;
+                startPanX = e.clientX;
+                startPanY = e.clientY;
+                return;
+            }
+
+            // Handle Node Dragging
+            if (!activeDraggedNodeId) return; 
+            const canvasRect = canvas.getBoundingClientRect(); 
+            
+            let newX = e.clientX - canvasRect.left - dragOffsetX + canvas.scrollLeft; 
+            let newY = e.clientY - canvasRect.top - dragOffsetY + canvas.scrollTop; 
+            newX = Math.max(10, newX); 
+            newY = Math.max(10, newY); 
+            
+            const node = corkboardData.nodes.find(n => n.id === activeDraggedNodeId); 
+            if (node) { 
+                node.x = newX; 
+                node.y = newY; 
+                const nodeEl = document.getElementById(`cb-node-${activeDraggedNodeId}`); 
+                if (nodeEl) { 
+                    nodeEl.style.left = `${newX}px`; 
+                    nodeEl.style.top = `${newY}px`; 
+                } 
+                drawLinks(); 
+            } 
+        }
+
+        function handleGlobalMouseUp() { 
+            if (isPanning) {
+                isPanning = false;
+                canvas.style.cursor = 'default';
+            }
+
+            if (activeDraggedNodeId) { 
+                const nodeEl = document.getElementById(`cb-node-${activeDraggedNodeId}`); 
+                if (nodeEl) nodeEl.classList.remove('selected-node'); 
+                activeDraggedNodeId = null; 
+                saveToStorage(); 
+            } 
+        }
+
+        // --- Data Persistence ---
+        function saveToStorage() {
+            localStorage.setItem('omniMindmapData_v1', JSON.stringify(corkboardData));
+        }
+
+        function loadFromStorage() {
+            const data = localStorage.getItem('omniMindmapData_v1');
+            if (data) {
+                try {
+                    corkboardData = JSON.parse(data);
+                    if (!corkboardData.nodes) corkboardData.nodes = [];
+                    if (!corkboardData.links) corkboardData.links = [];
+                } catch(e) {
+                    console.error("Failed to parse local storage mindmap data");
+                }
+            }
+        }
+
+        function exportMindmap() {
+            const blob = new Blob([JSON.stringify(corkboardData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Omni-Mindmap-Backup_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importMindmap(event) {
+            const file = event.target.files[0]; 
+            if (!file) return; 
+            
+            const reader = new FileReader(); 
+            reader.onload = function(e) { 
+                try { 
+                    const data = JSON.parse(e.target.result); 
+                    openConfirmModal("Loading this backup will overwrite your current mindmap. Proceed?", () => { 
+                        corkboardData = data;
+                        if (!corkboardData.nodes) corkboardData.nodes = [];
+                        if (!corkboardData.links) corkboardData.links = [];
+                        saveToStorage(); 
+                        renderCanvas(); 
+                    }); 
+                } catch (err) { 
+                    alert("Failed to read JSON file. Data might be corrupted.");
+                } 
+                event.target.value = ''; 
+            }; 
+            reader.readAsText(file); 
+        }
+
+        // --- Modals ---
+        let confirmModalCallback = null;
+        function openConfirmModal(msg, callback) { 
+            document.getElementById('confirm-modal-message').innerText = msg; 
+            confirmModalCallback = callback; 
+            document.getElementById('confirm-modal').classList.add('active'); 
+        }
+        document.getElementById('confirm-modal-yes').addEventListener('click', () => { 
+            closeModal('confirm-modal'); 
+            if (confirmModalCallback) confirmModalCallback(); 
+        });
+
+        function closeModal(id) { 
+            document.getElementById(id).classList.remove('active'); 
+        }
+    </script>
+</body>
+</html>

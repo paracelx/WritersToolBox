@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Writing Timer & Alarm</title>
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            max-width: 600px; 
+            margin: 3rem auto; 
+            padding: 0 1rem; 
+            background-color: #1e1e1e; 
+            color: #e0e0e0; 
+            text-align: center;
+        }
+        h2 { margin-bottom: 5px; color: #fff; }
+        .credit-line { font-size: 0.85em; color: #888; padding-bottom: 15px; border-bottom: 1px solid #444; margin-bottom: 30px; }
+        
+        .panel { 
+            background: #252525; 
+            padding: 30px; 
+            border-radius: 8px; 
+            border: 1px solid #444; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .timer-display {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 4.5em;
+            font-weight: bold;
+            color: #7289da;
+            margin: 20px 0;
+            text-shadow: 0 0 10px rgba(114, 137, 218, 0.4);
+        }
+        .timer-display.alarm-active {
+            color: #f44336;
+            animation: pulse 0.8s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 1; text-shadow: 0 0 10px rgba(244, 67, 54, 0.4); }
+            to { opacity: 0.4; text-shadow: 0 0 25px rgba(244, 67, 54, 0.9); }
+        }
+
+        .input-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .input-field {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .input-field label {
+            font-size: 0.75em;
+            color: #aaa;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"] {
+            width: 70px;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 1.5em;
+            text-align: center;
+            font-family: inherit;
+        }
+
+        .presets {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+        }
+        .preset-btn {
+            background: #2d2d2d;
+            border: 1px solid #555;
+            color: #ccc;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: 0.2s;
+        }
+        .preset-btn:hover {
+            background: #7289da;
+            color: white;
+            border-color: #7289da;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+        }
+        button.action-btn {
+            flex: 1;
+            padding: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            transition: 0.2s;
+        }
+        .btn-start { background-color: #4CAF50; }
+        .btn-start:hover { background-color: #388E3C; }
+        .btn-pause { background-color: #ff9800; }
+        .btn-pause:hover { background-color: #f57c00; }
+        .btn-reset { background-color: #f44336; }
+        .btn-reset:hover { background-color: #d32f2f; }
+
+        button:disabled {
+            background-color: #444;
+            color: #777;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Garrett's Writing Timer</h2>
+    <div class="credit-line">Created by D.W. Garrett | dwgarrett.creative@outlook.com</div>
+
+    <div class="panel">
+        
+        <!-- PRESET BUTTONS -->
+        <div class="presets">
+            <button class="preset-btn" onclick="setPreset(15)">15 Min</button>
+            <button class="preset-btn" onclick="setPreset(20)">20 Min</button>
+            <button class="preset-btn" onclick="setPreset(25)">25 Min (Pomodoro)</button>
+            <button class="preset-btn" onclick="setPreset(45)">45 Min</button>
+            <button class="preset-btn" onclick="setPreset(60)">60 Min</button>
+        </div>
+
+        <!-- TIME INPUTS -->
+        <div class="input-group" id="input-container">
+            <div class="input-field">
+                <label>Hours</label>
+                <input type="number" id="input-hours" value="0" min="0" max="23">
+            </div>
+            <div class="input-field">
+                <label>Minutes</label>
+                <input type="number" id="input-minutes" value="25" min="0" max="59">
+            </div>
+            <div class="input-field">
+                <label>Seconds</label>
+                <input type="number" id="input-seconds" value="0" min="0" max="59">
+            </div>
+        </div>
+
+        <!-- LARGE TIMER READOUT -->
+        <div class="timer-display" id="timer-display">25:00</div>
+
+        <!-- CONTROL BUTTONS -->
+        <div class="btn-group">
+            <button class="action-btn btn-start" id="btn-start" onclick="startTimer()">START</button>
+            <button class="action-btn btn-pause" id="btn-pause" onclick="pauseTimer()" disabled>PAUSE</button>
+            <button class="action-btn btn-reset" id="btn-reset" onclick="resetTimer()" disabled>RESET</button>
+        </div>
+
+    </div>
+
+    <script>
+        let totalSecondsRemaining = 1500; // Default 25 mins
+        let initialSeconds = 1500;
+        let timerInterval = null;
+        let timerState = 'idle'; // 'idle', 'running', 'paused', 'finished'
+        let audioCtx = null;
+
+        const display = document.getElementById('timer-display');
+        const startBtn = document.getElementById('btn-start');
+        const pauseBtn = document.getElementById('btn-pause');
+        const resetBtn = document.getElementById('btn-reset');
+        const inputContainer = document.getElementById('input-container');
+
+        function setPreset(mins) {
+            if (timerState === 'running' || timerState === 'paused') {
+                clearInterval(timerInterval);
+            }
+            document.getElementById('input-hours').value = 0;
+            document.getElementById('input-minutes').value = mins;
+            document.getElementById('input-seconds').value = 0;
+            
+            totalSecondsRemaining = mins * 60;
+            initialSeconds = totalSecondsRemaining;
+            timerState = 'idle';
+            
+            updateDisplay(totalSecondsRemaining);
+            startBtn.disabled = false;
+            startBtn.innerText = 'START';
+            pauseBtn.disabled = true;
+            resetBtn.disabled = true;
+            inputContainer.style.display = 'flex';
+            display.classList.remove('alarm-active');
+        }
+
+        function getInputsInSeconds() {
+            const h = parseInt(document.getElementById('input-hours').value) || 0;
+            const m = parseInt(document.getElementById('input-minutes').value) || 0;
+            const s = parseInt(document.getElementById('input-seconds').value) || 0;
+            return (h * 3600) + (m * 60) + s;
+        }
+
+        function updateDisplay(totalSecs) {
+            const h = Math.floor(totalSecs / 3600);
+            const m = Math.floor((totalSecs % 3600) / 60);
+            const s = totalSecs % 60;
+
+            if (h > 0) {
+                display.innerText = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            } else {
+                display.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            }
+        }
+
+        function startTimer() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            if (timerState === 'idle') {
+                totalSecondsRemaining = getInputsInSeconds();
+                if (totalSecondsRemaining <= 0) {
+                    alert("Please set a time greater than zero.");
+                    return;
+                }
+                initialSeconds = totalSecondsRemaining;
+            }
+
+            timerState = 'running';
+            inputContainer.style.display = 'none';
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+            resetBtn.disabled = false;
+            display.classList.remove('alarm-active');
+
+            timerInterval = setInterval(() => {
+                if (totalSecondsRemaining > 0) {
+                    totalSecondsRemaining--;
+                    updateDisplay(totalSecondsRemaining);
+                } else {
+                    clearInterval(timerInterval);
+                    timerState = 'finished';
+                    display.innerText = "TIME'S UP!";
+                    display.classList.add('alarm-active');
+                    playAlarmSound();
+                    
+                    startBtn.disabled = false;
+                    startBtn.innerText = 'START';
+                    pauseBtn.disabled = true;
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            if (timerState === 'running') {
+                clearInterval(timerInterval);
+                timerState = 'paused';
+                startBtn.disabled = false;
+                startBtn.innerText = 'RESUME';
+                pauseBtn.disabled = true;
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timerState = 'idle';
+            totalSecondsRemaining = initialSeconds;
+            updateDisplay(totalSecondsRemaining);
+            
+            inputContainer.style.display = 'flex';
+            startBtn.disabled = false;
+            startBtn.innerText = 'START';
+            pauseBtn.disabled = true;
+            resetBtn.disabled = true;
+            display.classList.remove('alarm-active');
+        }
+
+        // Generate pleasant offline alarm chime via Web Audio API
+        function playAlarmSound() {
+            if (!audioCtx) return;
+
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 chord sequence
+            notes.forEach((freq, index) => {
+                setTimeout(() => {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.6);
+                }, index * 150);
+            });
+        }
+
+        // Live update display when typing in custom numbers while idle
+        document.querySelectorAll('#input-container input').forEach(input => {
+            input.addEventListener('input', () => {
+                if (timerState === 'idle') {
+                    totalSecondsRemaining = getInputsInSeconds();
+                    updateDisplay(totalSecondsRemaining);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garrett's Serial Web-Packager</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; background-color: #1e1e1e; color: #e0e0e0; }
+        h2 { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+        .credit-line { font-size: 0.85em; color: #888; padding-bottom: 15px; border-bottom: 1px solid #444; margin-bottom: 20px; }
+        
+        .layout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        .panel { background: #2d2d2d; padding: 20px; border-radius: 6px; border: 1px solid #444; display: flex; flex-direction: column; }
+        .panel h3 { margin-top: 0; color: #7289da; border-bottom: 1px solid #444; padding-bottom: 10px; font-size: 1.1em; }
+        
+        .editor-box { width: 100%; height: 250px; padding: 15px; background-color: #222; color: #f8f8f2; border: 1px solid #555; border-radius: 6px; overflow-y: auto; line-height: 1.6; box-sizing: border-box; margin-bottom: 15px; }
+        .editor-box[contenteditable]:empty::before { content: "Click here and paste your chapter from Scrivener/Word..."; color: #888; }
+        
+        textarea.code-output { width: 100%; height: 400px; padding: 15px; background-color: #1a1a1a; color: #4CAF50; border: 1px solid #4CAF50; border-radius: 6px; font-family: monospace; font-size: 14px; resize: vertical; box-sizing: border-box; }
+        
+        label { font-size: 0.9em; font-weight: bold; margin-bottom: 5px; display: block; color: #aaa; }
+        input[type="text"], textarea.config-input { width: 100%; padding: 10px; background: #222; border: 1px solid #555; color: #fff; border-radius: 4px; margin-bottom: 15px; box-sizing: border-box; font-family: inherit; }
+        textarea.config-input { height: 80px; resize: vertical; }
+
+        button { background-color: #7289da; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
+        button:hover { background-color: #5b6eae; }
+        button.success { background-color: #4CAF50; }
+
+        .checkbox-row { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .checkbox-row input { transform: scale(1.2); }
+    </style>
+</head>
+<body>
+
+    <h2>Garrett's Serial Web-Packager</h2>
+    <div class="credit-line">
+        Created by Danny Garrett | dwgarrett.creative@outlook.com
+    </div>
+
+    <div class="layout-grid">
+        
+        <!-- LEFT COLUMN: INPUT & CONFIG -->
+        <div class="panel">
+            <h3>1. Input Chapter & Settings</h3>
+            
+            <label>Raw Chapter Draft (Preserves Italics/Bold)</label>
+            <div id="editor" class="editor-box" contenteditable="true"></div>
+
+            <label>Pre-Chapter Note (Appears at the very top)</label>
+            <textarea id="pre-note" class="config-input">Thanks for reading! New chapters drop every week.</textarea>
+
+            <label>Post-Chapter Note (Appears at the very bottom)</label>
+            <textarea id="post-note" class="config-input">If you're enjoying the story, please consider leaving a rating or review!
+
+&copy; 2026 D.W. Garrett | The Eight-Legged Covenant</textarea>
+
+            <div class="checkbox-row">
+                <input type="checkbox" id="convert-breaks" checked>
+                <label style="margin: 0;">Convert scene breaks (*** or ###) to HTML dividers &lt;hr&gt;</label>
+            </div>
+
+            <button id="process-btn" onclick="packageChapter()">Clean & Package HTML</button>
+        </div>
+
+        <!-- RIGHT COLUMN: OUTPUT -->
+        <div class="panel">
+            <h3>2. Web-Ready HTML Output</h3>
+            <p style="font-size: 0.85em; color: #aaa; margin-top: -5px;">Click the Source Code button `</>` in the Royal Road editor, then paste this exactly as-is.</p>
+            
+            <textarea id="html-output" class="code-output" readonly placeholder="Your clean, web-ready HTML code will appear here..."></textarea>
+            
+            <button id="copy-btn" style="margin-top: 15px; background-color: #444;" onclick="copyOutput()">Copy HTML to Clipboard</button>
+        </div>
+
+    </div>
+
+    <script>
+        function packageChapter() {
+            const editor = document.getElementById('editor');
+            const output = document.getElementById('html-output');
+            const preNote = document.getElementById('pre-note').value.trim();
+            const postNote = document.getElementById('post-note').value.trim();
+            const convertBreaks = document.getElementById('convert-breaks').checked;
+
+            if (editor.innerText.trim() === '') {
+                alert("Please paste your chapter into the input box first.");
+                return;
+            }
+
+            // Create a temporary staging area to manipulate the DOM safely
+            const stage = document.createElement('div');
+            stage.innerHTML = editor.innerHTML;
+
+            // 1. Strip all classes, IDs, inline styles, and font tags (The junk code)
+            stage.querySelectorAll('*').forEach(el => {
+                // Keep only essential web-safe formatting
+                const safeTags = ['P', 'B', 'I', 'EM', 'STRONG', 'BR', 'DIV'];
+                if (!safeTags.includes(el.tagName)) {
+                    // If it's a weird tag (like span), we replace the tag with its text contents
+                    const frag = document.createDocumentFragment();
+                    while (el.firstChild) { frag.appendChild(el.firstChild); }
+                    el.parentNode.replaceChild(frag, el);
+                } else {
+                    // If it's a safe tag, strip all its attributes so it's perfectly clean
+                    while (el.attributes.length > 0) {
+                        el.removeAttribute(el.attributes[0].name);
+                    }
+                }
+            });
+
+            // Standardize bold/italics
+            stage.innerHTML = stage.innerHTML
+                .replace(/<strong/gi, '<b')
+                .replace(/<\/strong>/gi, '</b>')
+                .replace(/<em/gi, '<i')
+                .replace(/<\/em>/gi, '</i>');
+
+            // 2. Wrap loose text blocks in <p> tags
+            // Sometimes pasting from Word leaves text without paragraphs
+            let blocks = stage.innerHTML.split(/<br\s*\/?>/gi);
+            let cleanBlocks = [];
+            
+            blocks.forEach(block => {
+                let text = block.trim();
+                if (text.length > 0) {
+                    // Check if it's already a paragraph
+                    if (!text.startsWith('<p>')) {
+                        text = `<p>${text}</p>`;
+                    }
+                    cleanBlocks.push(text);
+                }
+            });
+
+            let finalHTML = cleanBlocks.join('\n');
+
+            // 3. Convert Scene Breaks to <hr>
+            if (convertBreaks) {
+                // Looks for standalone paragraphs that are just ***, ###, or ---
+                finalHTML = finalHTML.replace(/<p>[\s]*(\*|#|-){3,}[\s]*<\/p>/gi, '\n<hr>\n');
+            }
+
+            // 4. Assemble the final package with headers and footers
+            let packagedHTML = '';
+
+            if (preNote !== '') {
+                packagedHTML += `<!-- AUTHOR PRE-NOTE -->\n<p><strong><em>${preNote.replace(/\n/g, '<br>')}</em></strong></p>\n<hr>\n\n`;
+            }
+
+            packagedHTML += `<!-- CHAPTER START -->\n${finalHTML}\n<!-- CHAPTER END -->\n\n`;
+
+            if (postNote !== '') {
+                packagedHTML += `<hr>\n<!-- AUTHOR POST-NOTE -->\n<p><strong><em>${postNote.replace(/\n/g, '<br>')}</em></strong></p>`;
+            }
+
+            // Push to the output box
+            output.value = packagedHTML;
+            
+            // Visual feedback on the button
+            const btn = document.getElementById('process-btn');
+            btn.innerText = "Package Successful!";
+            btn.classList.add('success');
+            setTimeout(() => {
+                btn.innerText = "Clean & Package HTML";
+                btn.classList.remove('success');
+            }, 2000);
+        }
+
+        function copyOutput() {
+            const output = document.getElementById('html-output');
+            if (output.value.trim() === '') {
+                alert("Nothing to copy! Package your chapter first.");
+                return;
+            }
+
+            output.select();
+            navigator.clipboard.writeText(output.value).then(() => {
+                const btn = document.getElementById('copy-btn');
+                btn.innerText = "Copied to Clipboard!";
+                btn.classList.add('success');
+                setTimeout(() => {
+                    btn.innerText = "Copy HTML to Clipboard";
+                    btn.classList.remove('success');
+                }, 2000);
+            }).catch(err => {
+                alert("Your browser blocked clipboard access. Please manually highlight the code and hit Ctrl+C.");
+            });
+        }
+    </script>
+</body>
+</html>

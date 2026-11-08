@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garrett's Deep Prose Engine v3.0 (Omni-Diagnostic Edition)</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            max-width: 1200px;
+            margin: 1.5rem auto;
+            padding: 0 1rem;
+            background-color: #050505;
+            color: #ffb000;
+            text-shadow: 0 0 5px rgba(255, 176, 0, 0.3);
+        }
+        h2 { text-align: center; margin-bottom: 5px; color: #ffb000; }
+        .credit-line { font-size: 0.8em; color: #888; text-align: center; padding-bottom: 15px; border-bottom: 1px solid #333; margin-bottom: 20px; }
+        .credit-line a { color: #ffb000; text-decoration: none; }
+
+        .panel {
+            background: #0a0a0a;
+            border: 2px solid #ffb000;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+        }
+        .panel h3 { margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; color: #ffb000; display: flex; justify-content: space-between; align-items: center; }
+
+        textarea {
+            width: 100%;
+            height: 320px;
+            background: #111;
+            border: 1px solid #444;
+            color: #ffb000;
+            font-family: inherit;
+            padding: 12px;
+            box-sizing: border-box;
+            border-radius: 4px;
+            font-size: 0.95em;
+            line-height: 1.6;
+            resize: vertical;
+        }
+        textarea:focus { border-color: #ffb000; outline: none; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+
+        button {
+            background: #111;
+            border: 1px solid #ffb000;
+            color: #ffb000;
+            padding: 12px 20px;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            border-radius: 4px;
+            transition: 0.2s;
+            width: 100%;
+        }
+        button:hover { background: #ffb000; color: #000; }
+        button.sub-btn { width: auto; padding: 4px 10px; font-size: 0.75em; }
+
+        .metric-card {
+            background: #111;
+            border: 1px solid #333;
+            padding: 12px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .metric-card .val { font-size: 1.3em; font-weight: bold; color: #fff; margin-top: 4px; }
+
+        .bar-container { background: #222; border-radius: 4px; height: 18px; overflow: hidden; margin-top: 6px; display: flex; }
+        .bar-fill { height: 100%; transition: width 0.4s ease; }
+
+        /* Chart Canvas Styles */
+        .chart-box {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 120px;
+            padding-top: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #444;
+            overflow-x: auto;
+        }
+        .chart-bar {
+            background: #ffb000;
+            min-width: 12px;
+            flex: 1;
+            border-radius: 2px 2px 0 0;
+        }
+        .chart-bar.high { background: #f44336; }
+        .chart-bar.low { background: #4CAF50; }
+
+        .tag-cloud { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .tag-item { background: #111; border: 1px solid #444; padding: 3px 8px; border-radius: 3px; font-size: 0.8em; color: #ffca28; }
+        .tag-item.alert { border-color: #f44336; color: #ef9a9a; }
+
+        /* Bionic Reader Display */
+        .bionic-preview {
+            background: #111;
+            border: 1px solid #333;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            color: #ddd;
+            line-height: 1.8;
+            font-size: 1em;
+            display: none;
+        }
+        .bionic-preview b { color: #ffb000; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>Prose Engine v3.0 (Omni-Diagnostic)</h2>
+    <div class="credit-line">
+        Created by D.W. Garrett | <a href="mailto:dwgarrett.creative@outlook.com">dwgarrett.creative@outlook.com</a>
+    </div>
+
+    <!-- Chapter Input Panel -->
+    <div class="panel">
+        <h3>Paste Manuscript Chapter</h3>
+        <textarea id="chapter-input" placeholder="Paste full chapter text here for omni-level diagnostics..."></textarea>
+        <div style="margin-top: 15px;">
+            <button onclick="runProseDiagnostics()">Run Omni Diagnostic Engine</button>
+        </div>
+    </div>
+
+    <!-- Diagnostics Dashboard (Hidden until run) -->
+    <div id="results-panel" style="display: none;">
+        
+        <!-- Key Metrics Header -->
+        <div class="panel">
+            <h3>Overview & Cognitive Metrics</h3>
+            <div class="grid-4">
+                <div class="metric-card">
+                    <label>Word Count</label>
+                    <div class="val" id="m-words">0</div>
+                </div>
+                <div class="metric-card">
+                    <label>Paragraphs</label>
+                    <div class="val" id="m-paras">0</div>
+                </div>
+                <div class="metric-card">
+                    <label>Avg Sentence Length</label>
+                    <div class="val" id="m-avg-sent">0</div>
+                </div>
+                <div class="metric-card">
+                    <label>Cadence SD (Variance)</label>
+                    <div class="val" id="m-rhythm-sd">0</div>
+                </div>
+            </div>
+
+            <div class="grid-4" style="margin-top: 12px;">
+                <div class="metric-card">
+                    <label>Coleman-Liau Grade</label>
+                    <div class="val" id="m-grade-cl">0</div>
+                </div>
+                <div class="metric-card">
+                    <label>ARI Grade Level</label>
+                    <div class="val" id="m-grade-ari">0</div>
+                </div>
+                <div class="metric-card">
+                    <label>Unique Words (TTR)</label>
+                    <div class="val" id="m-ttr">0%</div>
+                </div>
+                <div class="metric-card">
+                    <label>Filter Word Ratio</label>
+                    <div class="val" id="m-filter-ratio">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bionic Focus Proofreader -->
+        <div class="panel">
+            <h3>
+                Bionic Proofreader Focus Mode
+                <button class="sub-btn" onclick="toggleBionic()">Toggle Preview</button>
+            </h3>
+            <div id="bionic-box" class="bionic-preview"></div>
+        </div>
+
+        <!-- Emotional Valence Arc & Paragraph Cadence Chart -->
+        <div class="panel">
+            <div class="grid-2">
+                <div>
+                    <h3>Paragraph Cadence Graph</h3>
+                    <div class="chart-box" id="pacing-graph"></div>
+                </div>
+                <div>
+                    <h3>Chapter Emotional Valence Arc</h3>
+                    <div class="chart-box" id="emotion-graph"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Multi-Segment Composition Breakdown -->
+        <div class="panel">
+            <h3>Voice & Delivery Stack</h3>
+            <div style="margin-bottom: 8px;">
+                <label>Composition Stack: <span style="color:#7289da;">Spoken Dialogue</span> | <span style="color:#9c27b0;">Internal Monologue</span> | <span style="color:#4CAF50;">Active Narrative</span></label>
+                <div class="bar-container">
+                    <div id="seg-dialogue" style="background:#7289da; width:0%;"></div>
+                    <div id="seg-thought" style="background:#9c27b0; width:0%;"></div>
+                    <div id="seg-action" style="background:#4CAF50; width:0%;"></div>
+                </div>
+            </div>
+            <div style="font-size: 0.85em; color: #ccc; margin-top: 6px;" id="comp-summary"></div>
+        </div>
+
+        <!-- Expanded 8-Axis Sensory Spectrum Heatmap -->
+        <div class="panel">
+            <h3>8-Axis Sensory & Atmosphere Spectrum</h3>
+            <div class="grid-2">
+                <div>
+                    <label>Visual / Light & Shadow</label>
+                    <div class="bar-container"><div class="bar-fill" id="bar-vis" style="width:0%; background:#2196F3;"></div></div>
+                </div>
+                <div>
+                    <label>Auditory / Sound & Static</label>
+                    <div class="bar-container"><div class="bar-fill" id="bar-aud" style="width:0%; background:#9C27B0;"></div></div>
+                </div>
+                <div style="margin-top:8px;">
+                    <label>Tactile / Thermal & Texture</label>
+                    <div class="bar-container"><div class="bar-fill" id="bar-tac" style="width:0%; background:#FF9800;"></div></div>
+                </div>
+                <div style="margin-top:8px;">
+                    <label>Olfactory & Gustatory</label>
+                    <div class="bar-container"><div class="bar-fill" id="bar-olf" style="width:0%; background:#795548;"></div></div>
+                </div>
+                <div style="margin-top:8px;">
+                    <label>Visceral / Somatic Impact</label>
+                    <div class="bar-container"><div class="bar-fill" id="bar-visceral" style="width:0%; background:#E91E63;"></div></div>
+                </div>
+                <div style="margin-top:8px;">
+                    <label>Cosmic & Eldritch Imagery</label>
+                    <div class="bar-container"><div class="bar-fill" id="bar-eld" style="width:0%; background:#F44336;"></div></div>
+                </div>
+                <div style="margin-top:8px;">
+                    <label>Retro-Tech & Electronic Jargon</label>
+                    <div class="bar-container"><div class="bar-fill" id="bar-tech" style="width:0%; background:#00796b;"></div></div>
+                </div>
+                <div style="margin-top:8px;">
+                    <label>Atmospheric Isolation / Stillness</label>
+                    <div class="bar-container"><div class="bar-fill" id="bar-iso" style="width:0%; background:#607D8B;"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Repeated Sentence Openings & Filler Catcher -->
+        <div class="panel">
+            <div class="grid-2">
+                <div>
+                    <h3>Repetitive Sentence / Paragraph Openings</h3>
+                    <div class="tag-cloud" id="openings-container"></div>
+                </div>
+                <div>
+                    <h3>Filter & Weak Telling Verbs</h3>
+                    <div class="tag-cloud" id="filter-words-container"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const sensoryLexicon = {
+            visual: ["shadow", "light", "glow", "flicker", "darkness", "reflection", "silhouette", "glare", "crimson", "amber", "pallid", "shimmer", "bright", "bleak"],
+            auditory: ["hum", "static", "whisper", "echo", "crackle", "buzz", "hiss", "pulse", "silence", "thrum", "clack", "drone", "screech", "click"],
+            tactile: ["cold", "damp", "slick", "vibration", "chill", "rough", "heat", "heavy", "pressure", "numb", "shiver", "prickle", "smooth", "sharp"],
+            olfactory: ["smell", "scent", "stench", "acrid", "copper", "ozone", "musty", "sweet", "decay", "perfume", "smoke", "ash"],
+            visceral: ["nausea", "pulse", "tremor", "gasp", "bile", "dizzy", "gut", "spasm", "suffocate", "choke", "blood", "skin"],
+            eldritch: ["ichor", "tendril", "distortion", "carapace", "abyssal", "chitin", "void", "rot", "contamination", "slither", "geometry", "non-human"],
+            tech: ["vic-20", "486", "user port", "sram", "cache", "jumper", "ms-dos", "s-video", "crt", "baud", "signal", "bus", "dma", "irq", "circuit"],
+            isolation: ["quiet", "alone", "empty", "abandoned", "still", "stagnant", "hollow", "distant", "secluded", "isolated", "locked", "vault"]
+        };
+
+        const filterLexicon = ["saw", "heard", "noticed", "felt", "thought", "realized", "decided", "stood", "started to", "began to", "seemed", "wondered", "watched"];
+        
+        const positiveValence = ["light", "clear", "calm", "steady", "warm", "safe", "smooth", "bright", "pure", "open"];
+        const negativeValence = ["dark", "cold", "fear", "dread", "terror", "broken", "static", "rot", "bleed", "choke", "decay", "distortion", "lost"];
+
+        function runProseDiagnostics() {
+            const rawText = document.getElementById('chapter-input').value;
+            if (!rawText.trim()) {
+                alert("Please paste chapter text into the input field first.");
+                return;
+            }
+
+            document.getElementById('results-panel').style.display = 'block';
+
+            // 1. Basic Counts
+            const words = rawText.match(/\b[a-zA-Z0-9'-]+\b/g) || [];
+            const paragraphs = rawText.split(/\n+/).filter(p => p.trim().length > 0);
+            const sentences = rawText.match(/[^.!?]+[.!?]+/g) || [rawText];
+            const letterCount = (rawText.match(/[a-zA-Z]/g) || []).length;
+
+            document.getElementById('m-words').innerText = words.length.toLocaleString();
+            document.getElementById('m-paras').innerText = paragraphs.length;
+
+            // 2. Sentence Length & Rhythm SD
+            const sentLengths = sentences.map(s => (s.match(/\b[a-zA-Z0-9'-]+\b/g) || []).length);
+            const avgSentLen = sentLengths.length > 0 ? (words.length / sentLengths.length).toFixed(1) : 0;
+            document.getElementById('m-avg-sent').innerText = avgSentLen;
+
+            const mean = parseFloat(avgSentLen);
+            const variance = sentLengths.reduce((acc, len) => acc + Math.pow(len - mean, 2), 0) / (sentLengths.length || 1);
+            const sd = Math.sqrt(variance).toFixed(1);
+            document.getElementById('m-rhythm-sd').innerText = sd;
+
+            // 3. Readability & TTR
+            const L = (letterCount / (words.length || 1)) * 100;
+            const S = (sentences.length / (words.length || 1)) * 100;
+            const colemanLiau = (0.0588 * L - 0.296 * S - 15.8).toFixed(1);
+            const ari = (4.71 * (letterCount / (words.length || 1)) + 0.5 * (words.length / (sentences.length || 1)) - 21.43).toFixed(1);
+
+            document.getElementById('m-grade-cl').innerText = Math.max(1, colemanLiau);
+            document.getElementById('m-grade-ari').innerText = Math.max(1, ari);
+
+            const lowerWords = words.map(w => w.toLowerCase());
+            const uniqueSet = new Set(lowerWords);
+            const ttr = words.length > 0 ? ((uniqueSet.size / words.length) * 100).toFixed(1) : 0;
+            document.getElementById('m-ttr').innerText = ttr + '%';
+
+            // 4. Bionic Reading Overlay Generation
+            renderBionicText(rawText);
+
+            // 5. Paragraph Cadence & Valence Charts
+            renderCharts(paragraphs, words);
+
+            // 6. Voice Stack Composition
+            const dialogueMatches = rawText.match(/"([^"]*)"/g) || [];
+            const dialogueWords = dialogueMatches.join(' ').match(/\b[a-zA-Z0-9'-]+\b/g) || [];
+            
+            const thoughtMatches = rawText.match(/\*([^*]+)\*/g) || [];
+            const thoughtWords = thoughtMatches.join(' ').match(/\b[a-zA-Z0-9'-]+\b/g) || [];
+
+            const totalW = words.length || 1;
+            const dPct = ((dialogueWords.length / totalW) * 100).toFixed(1);
+            const tPct = ((thoughtWords.length / totalW) * 100).toFixed(1);
+            const aPct = Math.max(0, (100 - dPct - tPct)).toFixed(1);
+
+            document.getElementById('seg-dialogue').style.width = dPct + '%';
+            document.getElementById('seg-thought').style.width = tPct + '%';
+            document.getElementById('seg-action').style.width = aPct + '%';
+
+            document.getElementById('comp-summary').innerHTML = `
+                Spoken Dialogue: <strong>${dPct}%</strong> | Internal Monologue: <strong>${tPct}%</strong> | Active Prose: <strong>${aPct}%</strong>
+            `;
+
+            // 7. 8-Axis Sensory Analysis
+            const lowerText = rawText.toLowerCase();
+            const calcSensory = (list) => {
+                let count = 0;
+                list.forEach(w => {
+                    const matches = lowerText.match(new RegExp(`\\b${w}\\b`, 'g'));
+                    if (matches) count += matches.length;
+                });
+                return Math.min(100, (count / totalW) * 1200).toFixed(1);
+            };
+
+            document.getElementById('bar-vis').style.width = calcSensory(sensoryLexicon.visual) + '%';
+            document.getElementById('bar-aud').style.width = calcSensory(sensoryLexicon.auditory) + '%';
+            document.getElementById('bar-tac').style.width = calcSensory(sensoryLexicon.tactile) + '%';
+            document.getElementById('bar-olf').style.width = calcSensory(sensoryLexicon.olfactory) + '%';
+            document.getElementById('bar-visceral').style.width = calcSensory(sensoryLexicon.visceral) + '%';
+            document.getElementById('bar-eld').style.width = calcSensory(sensoryLexicon.eldritch) + '%';
+            document.getElementById('bar-tech').style.width = calcSensory(sensoryLexicon.tech) + '%';
+            document.getElementById('bar-iso').style.width = calcSensory(sensoryLexicon.isolation) + '%';
+
+            // 8. Filter Words & Sentence Openings Audit
+            renderAudits(sentences, lowerText, totalW);
+        }
+
+        function renderBionicText(text) {
+            const bionicBox = document.getElementById('bionic-box');
+            const formatted = text.split(/\s+/).map(word => {
+                if (word.length <= 3) return `<b>${word.slice(0, 1)}</b>${word.slice(1)}`;
+                const mid = Math.ceil(word.length / 2);
+                return `<b>${word.slice(0, mid)}</b>${word.slice(mid)}`;
+            }).join(' ');
+            bionicBox.innerHTML = formatted;
+        }
+
+        function toggleBionic() {
+            const box = document.getElementById('bionic-box');
+            box.style.display = (box.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function renderCharts(paragraphs, words) {
+            const graphEl = document.getElementById('pacing-graph');
+            graphEl.innerHTML = '';
+            paragraphs.forEach((p, idx) => {
+                const pWords = (p.match(/\b[a-zA-Z0-9'-]+\b/g) || []).length;
+                const pSents = (p.match(/[^.!?]+[.!?]+/g) || [p]).length;
+                const pWps = pSents > 0 ? pWords / pSents : pWords;
+
+                let barClass = 'chart-bar';
+                if (pWps < 12) barClass += ' low';
+                else if (pWps > 25) barClass += ' high';
+
+                const bar = document.createElement('div');
+                bar.className = barClass;
+                const heightPct = Math.min(100, (pWps / 40) * 100);
+                bar.style.height = `${Math.max(heightPct, 15)}%`;
+                bar.title = `Para ${idx+1}: ${pWords} words (${pWps.toFixed(1)} wps)`;
+                graphEl.appendChild(bar);
+            });
+
+            // Emotional Valence Arc Across 10 Segments
+            const emotionEl = document.getElementById('emotion-graph');
+            emotionEl.innerHTML = '';
+            const chunkSize = Math.ceil(words.length / 10) || 1;
+
+            for (let i = 0; i < 10; i++) {
+                const chunkWords = words.slice(i * chunkSize, (i + 1) * chunkSize).map(w => w.toLowerCase());
+                let pos = 0, neg = 0;
+                chunkWords.forEach(w => {
+                    if (positiveValence.includes(w)) pos++;
+                    if (negativeValence.includes(w)) neg++;
+                });
+
+                const tensionScore = Math.min(10, Math.max(1, neg - pos + 5));
+                const bar = document.createElement('div');
+                bar.className = 'chart-bar ' + (tensionScore > 6 ? 'high' : 'low');
+                bar.style.height = `${(tensionScore / 10) * 100}%`;
+                bar.title = `Arc Segment ${i+1}: Tension Score ${tensionScore}/10`;
+                emotionEl.appendChild(bar);
+            }
+        }
+
+        function renderAudits(sentences, lowerText, totalW) {
+            // Sentence Starters
+            const starters = {};
+            sentences.forEach(s => {
+                const clean = s.trim().replace(/^[^a-zA-Z]+/, '');
+                const firstTwo = clean.split(/\s+/).slice(0, 2).join(' ').toLowerCase();
+                if (firstTwo.length > 3) {
+                    starters[firstTwo] = (starters[firstTwo] || 0) + 1;
+                }
+            });
+
+            const openContainer = document.getElementById('openings-container');
+            openContainer.innerHTML = '';
+            const repeatedStarters = Object.entries(starters).filter(([st, c]) => c > 1).sort((a,b) => b[1] - a[1]).slice(0, 8);
+
+            if (repeatedStarters.length === 0) {
+                openContainer.innerHTML = '<span style="color:#888;">No repetitive sentence starters detected.</span>';
+            } else {
+                repeatedStarters.forEach(([starter, count]) => {
+                    const tag = document.createElement('span');
+                    tag.className = 'tag-item';
+                    tag.innerText = `"${starter}..." (${count}x)`;
+                    openContainer.appendChild(tag);
+                });
+            }
+
+            // Filter Verbs
+            const filterContainer = document.getElementById('filter-words-container');
+            filterContainer.innerHTML = '';
+            let filterCount = 0;
+
+            filterLexicon.forEach(term => {
+                const matches = lowerText.match(new RegExp(`\\b${term}\\b`, 'g'));
+                if (matches) {
+                    filterCount += matches.length;
+                    const tag = document.createElement('span');
+                    tag.className = 'tag-item alert';
+                    tag.innerText = `${term} (${matches.length}x)`;
+                    filterContainer.appendChild(tag);
+                }
+            });
+
+            const ratio = ((filterCount / totalW) * 100).toFixed(1);
+            document.getElementById('m-filter-ratio').innerText = ratio + '%';
+
+            if (filterCount === 0) {
+                filterContainer.innerHTML = '<span style="color:#4CAF50;">Prose is clean of tracked filter words.</span>';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Proofreader</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; background-color: #1e1e1e; color: #e0e0e0; }
+        h2 { margin-bottom: 5px; color: #fff; }
+        .credit-line { font-size: 0.85em; color: #888; padding-bottom: 15px; border-bottom: 1px solid #444; margin-bottom: 20px; }
+        
+        .panel { background: #252525; padding: 20px; border-radius: 6px; border: 1px solid #444; margin-bottom: 20px; }
+        
+        textarea { width: 100%; height: 350px; padding: 15px; background: #1a1a1a; border: 1px solid #555; color: #f8f8f2; border-radius: 6px; font-size: 16px; line-height: 1.6; resize: vertical; box-sizing: border-box; font-family: inherit; }
+        
+        .controls-bar { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #444; }
+        
+        .control-group { display: flex; flex-direction: column; gap: 5px; flex-grow: 1; min-width: 150px; }
+        label { font-size: 0.85em; font-weight: bold; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+        
+        select, input[type="range"] { width: 100%; background: #1a1a1a; border: 1px solid #555; color: #fff; padding: 8px; border-radius: 4px; box-sizing: border-box; }
+        
+        .btn-group { display: flex; gap: 10px; width: 100%; margin-top: 15px; }
+        button { flex: 1; padding: 15px; font-size: 16px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; transition: 0.2s; color: white; }
+        .btn-play { background-color: #4CAF50; } .btn-play:hover { background-color: #388E3C; }
+        .btn-pause { background-color: #ff9800; } .btn-pause:hover { background-color: #f57c00; }
+        .btn-stop { background-color: #f44336; } .btn-stop:hover { background-color: #d32f2f; }
+        
+        button:disabled { background-color: #555; color: #888; cursor: not-allowed; }
+
+        .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #f44336; margin-right: 8px; }
+        .status-indicator.active { background-color: #4CAF50; box-shadow: 0 0 8px #4CAF50; }
+        .status-indicator.paused { background-color: #ff9800; box-shadow: 0 0 8px #ff9800; }
+    </style>
+</head>
+<body>
+
+    <h2>Garrett's Audio Proofreader</h2>
+    <div class="credit-line">Created by D.W. Garrett | dwgarrett.creative@outlook.com</div>
+
+    <div class="panel">
+        <h3 style="margin-top: 0; color: #7289da; display: flex; align-items: center;">
+            <span class="status-indicator" id="status-light"></span> 
+            <span id="status-text">SYSTEM IDLE</span>
+        </h3>
+        
+        <textarea id="text-input" placeholder="Paste your chapter or scene here..."></textarea>
+        
+        <div class="controls-bar">
+            <div class="control-group" style="flex-grow: 2;">
+                <label>Voice Module</label>
+                <select id="voice-select"></select>
+            </div>
+            <div class="control-group">
+                <label>Playback Speed (<span id="rate-val">1.0</span>x)</label>
+                <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1" oninput="document.getElementById('rate-val').innerText = this.value">
+            </div>
+            <div class="control-group">
+                <label>Vocal Pitch (<span id="pitch-val">1.0</span>)</label>
+                <input type="range" id="pitch" min="0" max="2" value="1" step="0.1" oninput="document.getElementById('pitch-val').innerText = this.value">
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-play" id="btn-play" onclick="playText()">▶ PLAY</button>
+            <button class="btn-pause" id="btn-pause" onclick="pauseText()" disabled>⏸ PAUSE</button>
+            <button class="btn-stop" id="btn-stop" onclick="stopText()" disabled>⏹ STOP</button>
+        </div>
+    </div>
+
+    <script>
+        const synth = window.speechSynthesis;
+        const voiceSelect = document.getElementById('voice-select');
+        let voices = [];
+
+        // Load voices natively from the browser/OS
+        function populateVoiceList() {
+            voices = synth.getVoices();
+            voiceSelect.innerHTML = '';
+            
+            // Prefer English voices
+            const engVoices = voices.filter(voice => voice.lang.includes('en'));
+            const defaultVoices = engVoices.length > 0 ? engVoices : voices;
+
+            defaultVoices.forEach((voice, i) => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.setAttribute('data-lang', voice.lang);
+                option.setAttribute('data-name', voice.name);
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        populateVoiceList();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = populateVoiceList;
+        }
+
+        function updateUI(state) {
+            const light = document.getElementById('status-light');
+            const text = document.getElementById('status-text');
+            const playBtn = document.getElementById('btn-play');
+            const pauseBtn = document.getElementById('btn-pause');
+            const stopBtn = document.getElementById('btn-stop');
+
+            if (state === 'playing') {
+                light.className = 'status-indicator active';
+                text.innerText = 'TRANSMITTING AUDIO...';
+                playBtn.disabled = true; pauseBtn.disabled = false; stopBtn.disabled = false;
+            } else if (state === 'paused') {
+                light.className = 'status-indicator paused';
+                text.innerText = 'TRANSMISSION PAUSED';
+                playBtn.disabled = false; playBtn.innerText = '▶ RESUME';
+                pauseBtn.disabled = true; stopBtn.disabled = false;
+            } else {
+                light.className = 'status-indicator';
+                text.innerText = 'SYSTEM IDLE';
+                playBtn.disabled = false; playBtn.innerText = '▶ PLAY';
+                pauseBtn.disabled = true; stopBtn.disabled = true;
+            }
+        }
+
+        function playText() {
+            if (synth.paused && synth.speaking) {
+                synth.resume();
+                updateUI('playing');
+                return;
+            }
+
+            const textInput = document.getElementById('text-input').value;
+            if (textInput === '') { alert('No text to read.'); return; }
+
+            // Ensure previous speech is cleared before starting fresh
+            synth.cancel();
+
+            const utterThis = new SpeechSynthesisUtterance(textInput);
+            const selectedOption = voiceSelect.selectedOptions[0].getAttribute('data-name');
+            
+            for (let i = 0; i < voices.length; i++) {
+                if (voices[i].name === selectedOption) {
+                    utterThis.voice = voices[i]; break;
+                }
+            }
+            
+            utterThis.rate = document.getElementById('rate').value;
+            utterThis.pitch = document.getElementById('pitch').value;
+
+            utterThis.onend = function() { updateUI('idle'); }
+            utterThis.onerror = function() { updateUI('idle'); }
+
+            synth.speak(utterThis);
+            updateUI('playing');
+        }
+
+        function pauseText() {
+            if (synth.speaking && !synth.paused) {
+                synth.pause();
+                updateUI('paused');
+            }
+        }
+
+        function stopText() {
+            synth.cancel();
+            updateUI('idle');
+        }
+    </script>
+</body>
+</html>

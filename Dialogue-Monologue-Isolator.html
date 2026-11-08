@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garrett's Dialogue Isolator V3</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 950px; margin: 2rem auto; padding: 0 1rem; background-color: #1e1e1e; color: #e0e0e0; }
+        .editor-box { width: 100%; height: 300px; padding: 15px; background-color: #2d2d2d; color: #f8f8f2; border: 1px solid #555; border-radius: 6px; overflow-y: auto; line-height: 1.6; }
+        .editor-box[contenteditable]:empty::before { content: "Click here, then paste your chapter... (Italics will be preserved)"; color: #888; }
+        button { background-color: #7289da; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; margin-top: 15px; font-weight: bold; }
+        button:hover { background-color: #5b6eae; }
+        .dashboard { display: none; margin-top: 30px; border-top: 3px solid #7289da; padding-top: 20px; }
+        .stats-panel { background: #2d2d2d; padding: 15px 20px; border-radius: 6px; border: 1px solid #444; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .script-container { background: #252525; padding: 20px; border-radius: 6px; border: 1px solid #444; max-height: 600px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .dialogue-card { padding: 12px 15px; background: #333; border-radius: 0 4px 4px 0; color: #fff; position: relative; }
+        .card-label { position: absolute; top: -8px; left: 10px; font-size: 0.65em; font-weight: bold; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+        .voice-spoken { border-left: 4px solid #7289da; } .voice-spoken .card-label { background: #7289da; color: white; }
+        .voice-telepathy { border-left: 4px solid #4CAF50; } .voice-telepathy .card-label { background: #4CAF50; color: #1e1e1e; }
+        .voice-thought { border-left: 4px solid #9c27b0; font-style: italic; } .voice-thought .card-label { background: #9c27b0; color: white; font-style: normal; }
+    </style>
+</head>
+<body>
+
+    <h2>Garrett's Dialogue Isolator <span style="color: #7289da;">(Version 3)</span></h2>
+    <p>Paste your chapter below. The script will automatically separate <b>Spoken Dialogue</b>, <b>Telepathy</b>, and <b>Internal Monologue</b>.</p>
+    
+    <div id="editor" class="editor-box" contenteditable="true"></div>
+    
+    <button id="run-btn" onclick="extractVoices()">Generate Script View</button>
+
+    <!-- The dashboard is hidden until the button is clicked -->
+    <div class="dashboard" id="results">
+        <h3 style="margin-top: 0; color: #7289da;">Extraction Complete</h3>
+        <div class="stats-panel">
+            <strong id="voice-count">0 extracted lines</strong>
+            <button onclick="copyScript()" style="margin-top: 0; background-color: #444;">Copy to Clipboard</button>
+        </div>
+        <div class="script-container" id="script-output"></div>
+    </div>
+
+    <script>
+        function extractVoices() {
+            const btn = document.getElementById('run-btn');
+            const editor = document.getElementById('editor');
+            const resultsDiv = document.getElementById('results');
+            
+            // 1. Immediately update button text so you know it clicked
+            btn.innerText = "Processing...";
+            
+            // 2. We use a tiny delay so the browser has time to visually update the button text before doing the heavy lifting
+            setTimeout(() => {
+                try {
+                    const rawText = editor.textContent || editor.innerText || "";
+                    
+                    if (rawText.trim() === '') {
+                        alert("The tool thinks the box is empty. Click exactly inside the gray box before pasting.");
+                        btn.innerText = "Generate Script View";
+                        return;
+                    }
+                    
+                    // Reveal the dashboard
+                    resultsDiv.style.display = 'block';
+
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = editor.innerHTML;
+                    let extractedLines = [];
+
+                    // Extract Italics
+                    tempDiv.querySelectorAll('*').forEach(el => {
+                        if (el.tagName.toLowerCase() === 'i' || el.tagName.toLowerCase() === 'em' || (el.style && el.style.fontStyle === 'italic')) {
+                            const text = el.textContent.trim();
+                            if (text.includes(' ') && text.length > 5) {
+                                extractedLines.push({ cssClass: 'voice-thought', label: 'Monologue', text: `*${text}*` });
+                            }
+                        }
+                    });
+
+                    let plainText = editor.innerText || editor.textContent;
+                    plainText = plainText.replace(/[“”«»„]/g, '"');
+
+                    // Extract Quotes
+                    const quoteRegex = /"([\s\S]*?)"/g; 
+                    let match;
+                    while ((match = quoteRegex.exec(plainText)) !== null) {
+                        if (match[1].trim().length > 0) extractedLines.push({ cssClass: 'voice-spoken', label: 'Spoken', text: `"${match[1].trim()}"` });
+                    }
+
+                    // Extract Dashes (Wrapped)
+                    const dashWrapRegex = /([—–])([\s\S]*?)\1/g;
+                    while ((match = dashWrapRegex.exec(plainText)) !== null) {
+                        if (match[2].trim().length > 0) extractedLines.push({ cssClass: 'voice-telepathy', label: 'Telepathy', text: `– ${match[2].trim()} –` });
+                    }
+
+                    // Extract Dashes (Starting line)
+                    const dashLineRegex = /^[—–]\s*(.+)$/gm;
+                    while ((match = dashLineRegex.exec(plainText)) !== null) {
+                        let clean = match[1].trim();
+                        if (clean.length > 0 && !clean.endsWith('–') && !clean.endsWith('—')) {
+                            extractedLines.push({ cssClass: 'voice-telepathy', label: 'Telepathy', text: `– ${clean}` });
+                        }
+                    }
+
+                    document.getElementById('voice-count').innerText = `${extractedLines.length} voice lines extracted.`;
+                    const outputDiv = document.getElementById('script-output');
+                    
+                    if (extractedLines.length === 0) {
+                        outputDiv.innerHTML = '<p style="color:#aaa;font-style:italic;">No standard double quotes, en/em-dashes, or italics were found. (Note: Single quotes are not counted to avoid breaking contractions).</p>';
+                    } else {
+                        let html = '';
+                        extractedLines.forEach(line => {
+                            html += `<div class="dialogue-card ${line.cssClass}"><div class="card-label">${line.label}</div>${line.text}</div>`;
+                        });
+                        outputDiv.innerHTML = html;
+                    }
+
+                    // Forcibly scroll the screen down so you can see the results
+                    resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                } catch (error) {
+                    alert("System Error: " + error.message);
+                }
+                
+                // Reset button text
+                btn.innerText = "Generate Script View";
+                
+            }, 100);
+        }
+
+        function copyScript() {
+            let clipboardText = "=== MULTI-VOICE SCRIPT EXTRACT ===\n\n";
+            document.querySelectorAll('.dialogue-card').forEach(line => {
+                clipboardText += line.innerText.replace(/^(SPOKEN|TELEPATHY|MONOLOGUE)\s*/i, '').trim() + "\n\n";
+            });
+            navigator.clipboard.writeText(clipboardText)
+                .then(() => alert("Copied to clipboard!"))
+                .catch(() => alert("Your browser blocked the clipboard copy."));
+        }
+    </script>
+</body>
+</html>

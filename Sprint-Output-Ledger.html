@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprint & Output Ledger</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; background-color: #1e1e1e; color: #e0e0e0; }
+        h2 { margin-bottom: 5px; color: #fff; }
+        .credit-line { font-size: 0.85em; color: #888; padding-bottom: 15px; border-bottom: 1px solid #444; margin-bottom: 20px; }
+        
+        .layout-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+        @media(max-width: 768px) { .layout-grid { grid-template-columns: 1fr; } }
+
+        .panel { background: #252525; padding: 20px; border-radius: 6px; border: 1px solid #444; }
+        .panel h3 { margin-top: 0; color: #7289da; border-bottom: 1px solid #444; padding-bottom: 10px; font-size: 1.1em; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        
+        label { font-size: 0.9em; font-weight: bold; color: #aaa; display: block; margin-top: 15px; margin-bottom: 5px; }
+        input[type="date"], input[type="number"] { width: 100%; padding: 10px; background: #1a1a1a; border: 1px solid #555; color: #fff; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
+        input[type="file"] { display: none; }
+        
+        button { background-color: #7289da; color: white; border: none; padding: 12px; font-size: 15px; border-radius: 4px; cursor: pointer; margin-top: 20px; font-weight: bold; width: 100%; transition: 0.2s; }
+        button:hover { background-color: #5b6eae; }
+        
+        button.tertiary { background-color: #00796b; margin-top: 0; padding: 6px 12px; font-size: 12px; width: auto; font-weight: bold; }
+        button.tertiary:hover { background-color: #004d40; }
+        
+        button.danger { background-color: transparent; color: #f44336; border: 1px solid #f44336; padding: 6px 10px; font-size: 12px; margin-top: 20px; width: auto; float: right; }
+        button.danger:hover { background-color: #f44336; color: white; }
+
+        .btn-group-header { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .stat-box { background: #1a1a1a; padding: 15px; border-radius: 4px; border: 1px solid #333; text-align: center; }
+        .stat-box.highlight { border-color: #4CAF50; }
+        .stat-val { font-size: 1.8em; font-weight: bold; color: #fff; margin: 5px 0; }
+        .stat-label { font-size: 0.8em; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Offline Bar Chart */
+        .chart-wrapper { background: #1a1a1a; padding: 20px; border-radius: 4px; border: 1px solid #333; margin-top: 20px; }
+        .chart-area { display: flex; align-items: flex-end; gap: 6px; height: 250px; padding-bottom: 10px; border-bottom: 2px solid #555; overflow-x: auto; }
+        .bar-container { display: flex; flex-direction: column; align-items: center; width: 35px; flex-shrink: 0; }
+        .bar { width: 100%; background-color: #7289da; border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.5s ease; position: relative; }
+        .bar:hover { background-color: #4CAF50; cursor: pointer; }
+        .bar-label { font-size: 0.7em; color: #888; margin-top: 8px; }
+        .tooltip { visibility: hidden; background: #000; color: #fff; text-align: center; padding: 5px; border-radius: 4px; position: absolute; z-index: 1; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 5px; font-size: 0.8em; white-space: nowrap; }
+        .bar:hover .tooltip { visibility: visible; }
+
+        .log-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em; }
+        .log-table th, .log-table td { padding: 10px; text-align: left; border-bottom: 1px solid #444; }
+        .log-table th { color: #aaa; text-transform: uppercase; font-size: 0.8em; }
+        .delete-btn { background: transparent; color: #f44336; border: none; font-size: 14px; cursor: pointer; width: auto; padding: 0; margin: 0; }
+    </style>
+</head>
+<body>
+
+    <h2>Garrett's Sprint & Output Ledger</h2>
+    <div class="credit-line">Created by D.W. Garrett | dwgarrett.creative@outlook.com</div>
+
+    <div class="layout-grid">
+        <!-- LOG ENTRY -->
+        <div class="panel">
+            <h3>Log Daily Output</h3>
+            <label>Date</label>
+            <input type="date" id="log-date">
+            
+            <label>Starting Word Count (Manuscript)</label>
+            <input type="number" id="start-count" placeholder="e.g., 45000">
+            
+            <label>Ending Word Count (Manuscript)</label>
+            <input type="number" id="end-count" placeholder="e.g., 47250">
+            
+            <button onclick="saveLog()">Save Entry</button>
+        </div>
+
+        <!-- VISUALIZATION -->
+        <div class="panel">
+            <h3>
+                <span>Output Diagnostics</span>
+                <div class="btn-group-header">
+                    <button class="tertiary" onclick="exportJSONBackup()">Export JSON</button>
+                    <button class="tertiary" onclick="document.getElementById('import-file').click()" style="background-color: #006064;">Restore JSON</button>
+                    <input type="file" id="import-file" accept=".json" onchange="importJSONBackup(event)">
+                </div>
+            </h3>
+
+            <div class="stats-grid">
+                <div class="stat-box highlight">
+                    <div class="stat-val" id="stat-total" style="color: #4CAF50;">0</div>
+                    <div class="stat-label">Total Words Tracked</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-val" id="stat-avg">0</div>
+                    <div class="stat-label">Daily Average</div>
+                </div>
+            </div>
+
+            <div class="chart-wrapper">
+                <h4 style="margin: 0 0 15px 0; color: #aaa; font-size: 0.9em;">Momentum Graph</h4>
+                <div class="chart-area" id="chart-area">
+                    <!-- Bars generate here -->
+                </div>
+            </div>
+
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Net Words</th>
+                        <th>Manuscript Total</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="log-tbody">
+                    <!-- Logs generate here -->
+                </tbody>
+            </table>
+            
+            <button class="danger" onclick="clearLogs()">Wipe Ledger History</button>
+        </div>
+    </div>
+
+    <script>
+        let logs = [];
+
+        window.onload = function() {
+            document.getElementById('log-date').valueAsDate = new Date();
+            const stored = localStorage.getItem('garrettSprintLedger');
+            if (stored) {
+                try { logs = JSON.parse(stored); } catch(e) { logs = []; }
+            }
+            renderDashboard();
+        };
+
+        function saveLog() {
+            const dateStr = document.getElementById('log-date').value;
+            const startStr = document.getElementById('start-count').value;
+            const endStr = document.getElementById('end-count').value;
+
+            if (!dateStr || !startStr || !endStr) { alert("Please fill out all fields."); return; }
+
+            const start = parseInt(startStr);
+            const end = parseInt(endStr);
+            const net = end - start;
+
+            if (net < 0) { alert("Ending count is lower than starting count. Did you delete words?"); }
+
+            // Replace existing entry for this date if it exists
+            logs = logs.filter(l => l.date !== dateStr);
+            
+            logs.push({
+                date: dateStr,
+                start: start,
+                end: end,
+                net: net
+            });
+
+            // Sort chronologically
+            logs.sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            localStorage.setItem('garrettSprintLedger', JSON.stringify(logs));
+            
+            document.getElementById('start-count').value = endStr; // Prep for next day
+            document.getElementById('end-count').value = '';
+            renderDashboard();
+        }
+
+        function deleteLog(date) {
+            logs = logs.filter(l => l.date !== date);
+            localStorage.setItem('garrettSprintLedger', JSON.stringify(logs));
+            renderDashboard();
+        }
+
+        function clearLogs() {
+            if (confirm("Permanently wipe all output data?")) {
+                logs = [];
+                localStorage.setItem('garrettSprintLedger', JSON.stringify(logs));
+                renderDashboard();
+            }
+        }
+
+        // JSON Backup Export
+        function exportJSONBackup() {
+            const backupData = {
+                version: 1,
+                date: new Date().toISOString(),
+                logs: logs
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            
+            const dateStr = new Date().toISOString().split('T')[0];
+            downloadAnchor.setAttribute("download", `Sprint_Ledger_Backup_${dateStr}.json`);
+            
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        // JSON Restore Import
+        function importJSONBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.logs && Array.isArray(parsed.logs)) {
+                        if (confirm("Restoring this JSON backup will overwrite your current sprint history. Proceed?")) {
+                            logs = parsed.logs;
+                            localStorage.setItem('garrettSprintLedger', JSON.stringify(logs));
+                            renderDashboard();
+                            alert("Sprint ledger successfully restored from backup!");
+                        }
+                    } else {
+                        alert("Invalid backup file structure.");
+                    }
+                } catch (err) {
+                    alert("Error parsing JSON file: " + err.message);
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function renderDashboard() {
+            // 1. Calculate Stats
+            let totalWords = 0;
+            let maxDaily = 0;
+            
+            logs.forEach(l => {
+                totalWords += l.net;
+                if (l.net > maxDaily) maxDaily = l.net;
+            });
+
+            const avgWords = logs.length > 0 ? Math.round(totalWords / logs.length) : 0;
+
+            document.getElementById('stat-total').innerText = totalWords.toLocaleString();
+            document.getElementById('stat-avg').innerText = avgWords.toLocaleString();
+
+            // 2. Render Chart
+            const chart = document.getElementById('chart-area');
+            chart.innerHTML = '';
+
+            if (logs.length === 0) {
+                chart.innerHTML = '<p style="color:#555; align-self:center; margin:0 auto;">No data logged yet.</p>';
+            } else {
+                const scaleMax = maxDaily > 1000 ? maxDaily : 1000; 
+
+                logs.forEach(l => {
+                    const d = new Date(l.date + 'T00:00:00');
+                    const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    
+                    const heightPercent = Math.max((l.net / scaleMax) * 100, 1);
+
+                    const barDiv = document.createElement('div');
+                    barDiv.className = 'bar-container';
+                    barDiv.innerHTML = `
+                        <div class="bar" style="height: ${heightPercent}%;">
+                            <span class="tooltip">${l.net} words</span>
+                        </div>
+                        <div class="bar-label">${dateLabel}</div>
+                    `;
+                    chart.appendChild(barDiv);
+                });
+            }
+
+            // 3. Render Table
+            const tbody = document.getElementById('log-tbody');
+            tbody.innerHTML = '';
+            
+            for (let i = logs.length - 1; i >= 0; i--) {
+                const l = logs[i];
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${l.date}</td>
+                    <td style="color:#4CAF50; font-weight:bold;">+${l.net}</td>
+                    <td>${l.end.toLocaleString()}</td>
+                    <td><button class="delete-btn" onclick="deleteLog('${l.date}')">✕</button></td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+    </script>
+</body>
+</html>

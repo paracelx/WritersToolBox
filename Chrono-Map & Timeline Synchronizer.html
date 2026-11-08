@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrono-Map & Timeline Synchronizer</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background-color: #050505;
+            color: #ffb000;
+            text-shadow: 0 0 5px rgba(255, 176, 0, 0.3);
+        }
+        h2 { text-align: center; margin-bottom: 5px; color: #ffb000; }
+        .credit-line { font-size: 0.8em; color: #888; text-align: center; padding-bottom: 15px; border-bottom: 1px solid #333; margin-bottom: 20px; }
+        .credit-line a { color: #ffb000; text-decoration: none; }
+
+        .panel {
+            background: #0a0a0a;
+            border: 2px solid #ffb000;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+        }
+        .panel h3 { margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .flex-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        label { font-size: 0.8em; font-weight: bold; text-transform: uppercase; color: #aaa; display: block; margin-bottom: 4px; }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            background: #111;
+            border: 1px solid #444;
+            color: #ffb000;
+            font-family: inherit;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus, textarea:focus { border-color: #ffb000; outline: none; }
+
+        button {
+            background: #111;
+            border: 1px solid #ffb000;
+            color: #ffb000;
+            padding: 8px 14px;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            border-radius: 4px;
+            transition: 0.2s;
+        }
+        button:hover { background: #ffb000; color: #000; }
+        button.btn-danger { border-color: #f44336; color: #f44336; }
+        button.btn-danger:hover { background: #f44336; color: #fff; }
+        button.btn-secondary { border-color: #00e676; color: #00e676; }
+        button.btn-secondary:hover { background: #00e676; color: #000; }
+
+        .timeline-card {
+            background: #111;
+            border-left: 6px solid #ffb000;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 0 4px 4px 0;
+            position: relative;
+        }
+        .timeline-card header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            color: #fff;
+            border-bottom: 1px solid #222;
+            padding-bottom: 4px;
+            margin-bottom: 8px;
+        }
+        .meta-tag {
+            background: #222;
+            color: #ffb000;
+            padding: 2px 6px;
+            font-size: 0.75em;
+            border-radius: 3px;
+            border: 1px solid #444;
+            margin-right: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Chrono-Map & Timeline Synchronizer</h2>
+    <div class="credit-line">
+        Created by D.W. Garrett | <a href="mailto:dwgarrett.creative@outlook.com">dwgarrett.creative@outlook.com</a>
+    </div>
+
+    <!-- Active Project Bar -->
+    <div class="panel">
+        <div class="flex-row">
+            <div style="flex: 2;">
+                <label>Novel / Project Name</label>
+                <input type="text" id="project-title" value="The Eight-Legged Covenant" onchange="saveData()">
+            </div>
+            <div style="flex: 1;">
+                <label>Filter Swimlane</label>
+                <select id="filter-swimlane" onchange="renderTimeline()">
+                    <option value="ALL">All Swimlanes</option>
+                </select>
+            </div>
+            <div style="flex: 1;">
+                <label>Sort Order</label>
+                <select id="sort-order" onchange="renderTimeline()">
+                    <option value="CHAPTER">Chapter Reveal Order</option>
+                    <option value="CHRONO">Absolute In-Universe Time</option>
+                </select>
+            </div>
+            <div style="flex: 1;">
+                <label>Search Events</label>
+                <input type="text" id="search-input" placeholder="Keyword..." oninput="renderTimeline()">
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Event Panel -->
+    <div class="panel">
+        <h3 id="form-heading">Log Chronological Event</h3>
+        <input type="hidden" id="editing-id" value="">
+        <div class="flex-row" style="margin-bottom: 12px;">
+            <div style="width: 90px;">
+                <label>Chapter</label>
+                <input type="number" id="event-chap" value="1" min="1">
+            </div>
+            <div style="flex: 2;">
+                <label>In-Universe Date / Time Display</label>
+                <input type="text" id="event-time" placeholder="e.g., Oct 24, 1994 - 03:14 AM">
+            </div>
+            <div style="flex: 1.5;">
+                <label>Chrono Key (YYYY-MM-DD-HHMM)</label>
+                <input type="text" id="event-sortkey" placeholder="1994-10-24-0314">
+            </div>
+            <div style="flex: 1.5;">
+                <label>Swimlane / Track</label>
+                <input type="text" id="event-lane" placeholder="e.g., Protagonist, Cult Faction">
+            </div>
+            <div style="flex: 1.5;">
+                <label>Location</label>
+                <input type="text" id="event-loc" placeholder="e.g., Sub-Basement / Server Room">
+            </div>
+        </div>
+        <div style="margin-bottom: 12px;">
+            <label>Event Description & Narrative Impact</label>
+            <textarea id="event-desc" rows="2" placeholder="Detail the key action or lore trigger..."></textarea>
+        </div>
+        <div style="text-align: right; display: flex; justify-content: flex-end; gap: 8px;">
+            <button id="cancel-btn" style="display:none;" onclick="resetForm()">Cancel Edit</button>
+            <button id="submit-btn" onclick="commitEvent()">+ Commit Event to Chrono-Map</button>
+        </div>
+    </div>
+
+    <!-- Timeline Sequence Output -->
+    <div class="panel">
+        <h3>Master Timeline Feed</h3>
+        <div id="timeline-container">
+            <div style="color: #666; font-size: 0.85em; text-align: center;">No events logged in chronology yet.</div>
+        </div>
+    </div>
+
+    <!-- Backup & Restore -->
+    <div class="panel">
+        <h3>Suite Data Management</h3>
+        <div class="flex-row">
+            <button onclick="exportJSON()">Export Timeline JSON</button>
+            <button class="btn-secondary" onclick="exportCSV()">Export Scrivener / Aeon CSV</button>
+            <button onclick="document.getElementById('import-file').click()">Import Timeline JSON</button>
+            <input type="file" id="import-file" style="display: none;" onchange="importJSON(event)">
+        </div>
+    </div>
+
+    <script>
+        const TRACK_COLORS = ['#ffb000', '#00e676', '#00bcd4', '#e91e63', '#ab47bc', '#ff5722'];
+        
+        let chronoData = {
+            project: "The Eight-Legged Covenant",
+            events: [
+                {
+                    id: "evt_1",
+                    chapter: 1,
+                    time: "Oct 12, 1994 - 23:45",
+                    sortKey: "1994-10-12-2345",
+                    lane: "Protagonist",
+                    location: "Main Workshop",
+                    desc: "Uncovered anomalous signal pulsing from vintage VIC-20 user port.",
+                    timestamp: 1
+                }
+            ]
+        };
+
+        function init() {
+            const saved = localStorage.getItem('garrett_chrono_map_data');
+            if (saved) {
+                try { chronoData = JSON.parse(saved); } catch(e) {}
+            }
+            document.getElementById('project-title').value = chronoData.project || "The Eight-Legged Covenant";
+            updateSwimlaneFilter();
+            renderTimeline();
+        }
+
+        function saveData() {
+            chronoData.project = document.getElementById('project-title').value;
+            localStorage.setItem('garrett_chrono_map_data', JSON.stringify(chronoData));
+        }
+
+        function getLaneColor(lane) {
+            const lanes = Array.from(new Set(chronoData.events.map(e => e.lane)));
+            const index = lanes.indexOf(lane);
+            return TRACK_COLORS[index % TRACK_COLORS.length] || '#ffb000';
+        }
+
+        function commitEvent() {
+            const editId = document.getElementById('editing-id').value;
+            const chap = parseInt(document.getElementById('event-chap').value) || 1;
+            const time = document.getElementById('event-time').value.trim() || "Unspecified Date";
+            const sortKey = document.getElementById('event-sortkey').value.trim() || "0000-00-00-0000";
+            const lane = document.getElementById('event-lane').value.trim() || "Main Track";
+            const loc = document.getElementById('event-loc').value.trim() || "Unknown";
+            const desc = document.getElementById('event-desc').value.trim();
+
+            if (!desc) {
+                alert("Please enter an event description.");
+                return;
+            }
+
+            if (editId) {
+                const target = chronoData.events.find(e => e.id === editId);
+                if (target) {
+                    target.chapter = chap;
+                    target.time = time;
+                    target.sortKey = sortKey;
+                    target.lane = lane;
+                    target.location = loc;
+                    target.desc = desc;
+                }
+            } else {
+                chronoData.events.push({
+                    id: 'evt_' + Date.now(),
+                    chapter: chap,
+                    time: time,
+                    sortKey: sortKey,
+                    lane: lane,
+                    location: loc,
+                    desc: desc,
+                    timestamp: Date.now()
+                });
+            }
+
+            resetForm();
+            saveData();
+            updateSwimlaneFilter();
+            renderTimeline();
+        }
+
+        function editEvent(id) {
+            const target = chronoData.events.find(e => e.id === id);
+            if (!target) return;
+
+            document.getElementById('editing-id').value = target.id;
+            document.getElementById('event-chap').value = target.chapter;
+            document.getElementById('event-time').value = target.time;
+            document.getElementById('event-sortkey').value = target.sortKey || "";
+            document.getElementById('event-lane').value = target.lane;
+            document.getElementById('event-loc').value = target.location;
+            document.getElementById('event-desc').value = target.desc;
+
+            document.getElementById('form-heading').innerText = "Edit Chronological Event";
+            document.getElementById('submit-btn').innerText = "Update Event Entry";
+            document.getElementById('cancel-btn').style.display = "inline-block";
+        }
+
+        function resetForm() {
+            document.getElementById('editing-id').value = "";
+            document.getElementById('event-chap').value = 1;
+            document.getElementById('event-time').value = "";
+            document.getElementById('event-sortkey').value = "";
+            document.getElementById('event-lane').value = "";
+            document.getElementById('event-loc').value = "";
+            document.getElementById('event-desc').value = "";
+
+            document.getElementById('form-heading').innerText = "Log Chronological Event";
+            document.getElementById('submit-btn').innerText = "+ Commit Event to Chrono-Map";
+            document.getElementById('cancel-btn').style.display = "none";
+        }
+
+        function deleteEvent(id) {
+            if (confirm("Delete this event entry?")) {
+                chronoData.events = chronoData.events.filter(e => e.id !== id);
+                saveData();
+                updateSwimlaneFilter();
+                renderTimeline();
+            }
+        }
+
+        function updateSwimlaneFilter() {
+            const filter = document.getElementById('filter-swimlane');
+            const currentVal = filter.value;
+            const lanes = new Set(chronoData.events.map(e => e.lane));
+
+            filter.innerHTML = '<option value="ALL">All Swimlanes</option>';
+            lanes.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l;
+                opt.innerText = l;
+                if (l === currentVal) opt.selected = true;
+                filter.appendChild(opt);
+            });
+        }
+
+        function renderTimeline() {
+            const container = document.getElementById('timeline-container');
+            const selectedLane = document.getElementById('filter-swimlane').value;
+            const sortOrder = document.getElementById('sort-order').value;
+            const search = document.getElementById('search-input').value.toLowerCase();
+
+            let filtered = chronoData.events.filter(e => {
+                const matchesLane = (selectedLane === 'ALL' || e.lane === selectedLane);
+                const matchesSearch = (e.desc.toLowerCase().includes(search) || 
+                                       e.location.toLowerCase().includes(search) || 
+                                       e.lane.toLowerCase().includes(search) ||
+                                       e.time.toLowerCase().includes(search));
+                return matchesLane && matchesSearch;
+            });
+
+            if (sortOrder === 'CHAPTER') {
+                filtered.sort((a, b) => a.chapter - b.chapter || a.timestamp - b.timestamp);
+            } else {
+                filtered.sort((a, b) => (a.sortKey || "").localeCompare(b.sortKey || "") || a.chapter - b.chapter);
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="color: #666; font-size: 0.85em; text-align: center;">No matching events found.</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            filtered.forEach(e => {
+                const color = getLaneColor(e.lane);
+                const card = document.createElement('div');
+                card.className = 'timeline-card';
+                card.style.borderLeftColor = color;
+                card.innerHTML = `
+                    <header>
+                        <span>Chapter ${e.chapter} — ${e.time} ${e.sortKey ? `<small style="color:#777">(${e.sortKey})</small>` : ''}</span>
+                        <div>
+                            <button style="padding:2px 6px; font-size:0.75em; margin-right:4px;" onclick="editEvent('${e.id}')">Edit</button>
+                            <button class="btn-danger" style="padding:2px 6px; font-size:0.75em;" onclick="deleteEvent('${e.id}')">Delete</button>
+                        </div>
+                    </header>
+                    <div style="margin-bottom: 6px;">
+                        <span class="meta-tag" style="border-color:${color}; color:${color}">TRACK: ${e.lane}</span>
+                        <span class="meta-tag">LOCATION: ${e.location}</span>
+                    </div>
+                    <div style="font-size: 0.9em; color: #ffca28;">${e.desc}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function exportJSON() {
+            const str = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(chronoData, null, 2));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", str);
+            dl.setAttribute("download", `Chrono_Map_${chronoData.project.replace(/[^a-z0-9]/gi, '_')}.json`);
+            document.body.appendChild(dl);
+            dl.click();
+            dl.remove();
+        }
+
+        function exportCSV() {
+            let csv = "Chapter,In-Universe Display,Sort Key,Swimlane Track,Location,Description\n";
+            chronoData.events.forEach(e => {
+                const row = [
+                    e.chapter,
+                    `"${(e.time || '').replace(/"/g, '""')}"`,
+                    `"${(e.sortKey || '').replace(/"/g, '""')}"`,
+                    `"${(e.lane || '').replace(/"/g, '""')}"`,
+                    `"${(e.location || '').replace(/"/g, '""')}"`,
+                    `"${(e.desc || '').replace(/"/g, '""')}"`
+                ];
+                csv += row.join(",") + "\n";
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Timeline_Export_${chronoData.project.replace(/[^a-z0-9]/gi, '_')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    chronoData = JSON.parse(evt.target.result);
+                    saveData();
+                    init();
+                    alert("Timeline data imported successfully!");
+                } catch(err) {
+                    alert("Error parsing JSON file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual-Monitor Atmospheric Metaphor Engine v3.0 - Occult Edition</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            background-color: #030303; 
+            color: #ffb000; 
+            font-family: 'Courier New', Courier, monospace; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            overflow: hidden;
+            text-shadow: 0 0 5px rgba(255, 176, 0, 0.3);
+        }
+
+        .control-panel {
+            background: #0a0a0a;
+            border: 2px solid #ffb000;
+            padding: 30px;
+            border-radius: 6px;
+            width: 700px;
+            max-width: 95vw;
+            max-height: 95vh;
+            overflow-y: auto;
+            box-shadow: 0 0 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(255,176,0,0.1);
+            z-index: 10;
+        }
+
+        h2 { text-align: center; margin-bottom: 5px; font-size: 1.15em; letter-spacing: 2px; }
+        .credit { text-align: center; font-size: 0.75em; color: #777; margin-bottom: 25px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .warning { text-align: center; font-size: 0.7em; color: #ff4444; margin-bottom: 15px; letter-spacing: 1px; font-weight: bold;}
+
+        .mode-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button.mode-btn {
+            background: #111;
+            border: 1px solid #ffb000;
+            color: #ffb000;
+            padding: 12px;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 0.8em;
+            cursor: pointer;
+            text-transform: uppercase;
+            border-radius: 4px;
+            transition: 0.2s;
+            text-align: left;
+        }
+        button.mode-btn:hover { background: #ffb000; color: #000; }
+        button.mode-btn.active { background: #ffb000; color: #000; box-shadow: 0 0 15px rgba(255,176,0,0.6); }
+
+        /* Highlight the new mode */
+        #btn-fracture { border-color: #a344ff; color: #a344ff; }
+        #btn-fracture:hover { background: #a344ff; color: #000; }
+        #btn-fracture.active { background: #a344ff; color: #000; box-shadow: 0 0 15px rgba(163, 68, 255, 0.6); }
+
+        #btn-abyssal { border-color: #ff3300; color: #ff3300; }
+        #btn-abyssal:hover { background: #ff3300; color: #000; }
+        #btn-abyssal.active { background: #ff3300; color: #000; box-shadow: 0 0 15px rgba(255, 51, 0, 0.6); }
+
+        #btn-void { border-color: #5555ff; color: #5555ff; }
+        #btn-void:hover { background: #5555ff; color: #000; }
+        #btn-void.active { background: #5555ff; color: #000; box-shadow: 0 0 15px rgba(85, 85, 255, 0.6); }
+
+        #btn-weaver { border-color: #00ffaa; color: #00ffaa; }
+        #btn-weaver:hover { background: #00ffaa; color: #000; }
+        #btn-weaver.active { background: #00ffaa; color: #000; box-shadow: 0 0 15px rgba(0, 255, 170, 0.6); }
+
+        .action-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        button.engage-btn {
+            flex: 1;
+            background: #4CAF50;
+            border: 1px solid #4CAF50;
+            color: #fff;
+            padding: 14px;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 0.9em;
+            cursor: pointer;
+            text-transform: uppercase;
+            border-radius: 4px;
+            transition: 0.2s;
+        }
+        button.engage-btn:hover { background: #388E3C; }
+        button.engage-btn.running { background: #f44336; border-color: #f44336; }
+
+        /* FULLSCREEN AMBIENT STAGE */
+        #ambient-stage {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #000;
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            cursor: none;
+            overflow: hidden;
+            transition: background 1s ease;
+        }
+        #ambient-stage.active { display: flex; }
+
+        /* CANVAS FOR PROCEDURAL FLUID EFFECTS */
+        #effect-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+        }
+
+        .stage-text {
+            position: relative;
+            z-index: 10;
+            font-size: 1.6vw;
+            font-weight: bold;
+            text-align: center;
+            letter-spacing: 2px;
+            max-width: 75vw;
+            line-height: 1.6;
+            opacity: 0.85;
+            transition: opacity 1.5s ease;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .exit-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            font-size: 0.75em;
+            color: rgba(255,255,255,0.2);
+            letter-spacing: 1px;
+            pointer-events: none;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="control-panel" id="control-panel">
+        <h2>ATMOSPHERIC METAPHOR ENGINE</h2>
+        <div class="credit">Organic Gradient & Textural Drift Generator - v3.0</div>
+        <div class="warning">⚠️ WARNING: UTILIZES SUB-PERCEPTUAL 18HZ AUDIO & CHRONOBIOLOGICAL DEGRADATION ⚠️</div>
+        <div class="warning" id="trauma-display" style="color: #a344ff; font-size: 0.75em; opacity: 0.8;"></div>
+
+        <div class="mode-grid">
+            <button class="mode-btn active" id="btn-despair" onclick="setMode('despair')">🌀 Despair<br><span style="font-size:0.7em; opacity:0.7;">Subsurface Tide / Slow Drift</span></button>
+            <button class="mode-btn" id="btn-obsession" onclick="setMode('obsession')">✍️ Obsession<br><span style="font-size:0.7em; opacity:0.7;">CRT Seep & Code Cascade</span></button>
+            <button class="mode-btn" id="btn-panic" onclick="setMode('panic')">☠️ Panic<br><span style="font-size:0.7em; opacity:0.7;">Peripheral Micro-Glitch & Subliminals</span></button>
+            <button class="mode-btn" id="btn-hate" onclick="setMode('hate')">🤬 Hate<br><span style="font-size:0.7em; opacity:0.7;">Thermal Bleed & Convection</span></button>
+            <button class="mode-btn" id="btn-fracture" onclick="setMode('fracture')" style="grid-column: span 2;">👁️ Sovereign Fracture<br><span style="font-size:0.7em; opacity:0.7;">Asymmetrical Dissonance Field / Non-Dual Inversion</span></button>
+            <button class="mode-btn" id="btn-abyssal" onclick="setMode('abyssal')">🔥 Abyssal Descent<br><span style="font-size:0.7em; opacity:0.7;">Swirling Ash & Boiling Crimson</span></button>
+            <button class="mode-btn" id="btn-void" onclick="setMode('void')">🌌 Void Contemplation<br><span style="font-size:0.7em; opacity:0.7;">Hypnotic Geometric Inversion</span></button>
+            <button class="mode-btn" id="btn-weaver" onclick="setMode('weaver')" style="grid-column: span 2;">🕸️ The Weaver's Trance<br><span style="font-size:0.7em; opacity:0.7;">Drifting Fractal Web & Occult Lore</span></button>
+        </div>
+
+        <div class="action-row">
+            <button class="engage-btn" id="engage-btn" onclick="toggleStage()">ENGAGE AMBIENT STAGE</button>
+        </div>
+    </div>
+
+    <!-- FULLSCREEN ATMOSPHERIC STAGE -->
+    <div id="ambient-stage" onclick="toggleStage()">
+        <canvas id="effect-canvas"></canvas>
+        <div class="stage-text" id="stage-text">Awaiting Atmosphere Vector...</div>
+        <div class="exit-hint">[PRESS ESC OR CLICK ANYWHERE TO EXIT]</div>
+    </div>
+
+    <script>
+        let currentMode = 'despair';
+        let isRunning = false;
+        let animationFrameId = null;
+        let canvas, ctx;
+        let textTimer = null;
+        
+        // System variables for new occult features
+        let audioCtx = null;
+        let infrasoundOsc = null;
+        let gainNode = null;
+        let stageStartTime = 0;
+        
+        // 90 minutes in milliseconds for full biological cycle degradation
+        const ULTRADIAN_CYCLE_MS = 90 * 60 * 1000; 
+
+        // SESSION TRAUMA (Persistent Degradation)
+        let traumaLevel = parseInt(localStorage.getItem('occult_trauma')) || 0;
+        let keystrokeSpike = 0; // Tracks manual dissonance input
+        let webNodes = []; // For Procedural Geometric Webbing
+
+        const modeConfigs = {
+            despair: {
+                name: "DESPAIR",
+                textColor: "#7289da",
+                phrases: [
+                    "A sluggish, failing pulse in the void.",
+                    "Like a lighthouse beam passing over a graveyard...",
+                    "Seconds of blinding exposure followed by drowning blackness.",
+                    "An agonizing, slow descent into subterranean cold.",
+                    "The architecture of the abyss folding inward.",
+                    "Choking on the dust of dead constellations.",
+                    "An eternity of cold, unblinking observation.",
+                    "The silence of a tomb drifting through the cosmos.",
+                    "Gravity crushing the final spark of hope.",
+                    "The tides of a lightless ocean pulling you under.",
+                    "Forgotten by the light, claimed by the sediment.",
+                    "The slow erosion of the ego in the dark.",
+                    "A pale web woven across a dying sun.",
+                    "The crushing weight of unremembered eons.",
+                    "Fading into the static of a dead universe.",
+                    "A fossilized scream buried in the strata of time.",
+                    "The horizon dissolving into ash and apathy."
+                ]
+            },
+            obsession: {
+                name: "WRITING / OBSESSION",
+                textColor: "#ffb000",
+                phrases: [
+                    "A frantic, staticky flicker of typewritten memory.",
+                    "Like a corrupted film reel spinning out of control.",
+                    "Throwing jagged bursts of text against the retinas.",
+                    "The text unspools into the infinite scroll.",
+                    "Weaving the covenant, thread by agonizing thread.",
+                    "Spasms of ink dictating a cursed truth.",
+                    "Eyes burning from the glow of forbidden geometry.",
+                    "The manuscript breathes when you look away.",
+                    "Carving the lore into the back of your own mind.",
+                    "Eight limbs twitching in the rhythm of the keystrokes.",
+                    "Compulsive translation of a dead god's whisper.",
+                    "The cursor blinking like a predatory heartbeat.",
+                    "Tracing the spinneret's silk through the labyrinth.",
+                    "Decoding the arachnid cipher left in the margins.",
+                    "A compulsion to catalog the names of the abyss.",
+                    "Rewriting the self until the flesh becomes syntax.",
+                    "The ink is pooling; the web is tightening."
+                ]
+            },
+            panic: {
+                name: "PANIC",
+                textColor: "#ff4444",
+                phrases: [
+                    "A relentless, perimeter breach in the dark.",
+                    "The light didn't flicker; it whispered warnings.",
+                    "Chopping the approach into a sickening, stop-motion nightmare.",
+                    "Peripheral static tearing across the line of sight.",
+                    "Do you see the geometry hiding in the blind spots?",
+                    "Scuttling sounds in the architecture of the walls.",
+                    "Too many eyes opening in the peripheral blind spots.",
+                    "The geometry of the room is violently wrong.",
+                    "It remembers your face from before you were born.",
+                    "A jagged tear in the fabric of the room.",
+                    "The shadows are moving against the light.",
+                    "Suffocating on a breath you haven't taken yet.",
+                    "A swarm of unseen mandibles clicking in unison.",
+                    "The walls are breathing in a non-Euclidean rhythm.",
+                    "Something is watching from the apex of the corner.",
+                    "The sudden realization that you were never alone.",
+                    "Arachnid limbs sliding beneath the doorframe."
+                ]
+            },
+            hate: {
+                name: "HATE / RAGE",
+                textColor: "#ff2222",
+                phrases: [
+                    "A thudding, crimson pressure core.",
+                    "Each thermal wave felt like a physical strike.",
+                    "A jagged cadence of pure, blinding malice.",
+                    "Convection currents warping the baseline reality.",
+                    "Boiling marrow and grinding teeth.",
+                    "The furnace of a dying star screaming in the skull.",
+                    "Vibrating with the frequency of absolute destruction.",
+                    "A corrosive static burning through the temporal lobe.",
+                    "The geometry of violence manifesting in real-time.",
+                    "Tearing at the silken threads of a binding curse.",
+                    "A venomous heat flooding the nervous system.",
+                    "The primal urge to unmake the architecture of existence.",
+                    "Fracturing reality with a gaze of absolute contempt.",
+                    "A weaponized frequency meant to shatter bone.",
+                    "Consuming the observer with a parasitic rage.",
+                    "Scorched earth, salted wounds, and burning mandibles."
+                ]
+            },
+            fracture: {
+                name: "SOVEREIGN FRACTURE",
+                textColor: "#a344ff",
+                phrases: [
+                    "Bifurcation of the mind's eye.",
+                    "Hemispheric schism protocol engaged.",
+                    "Asymmetrical reality tunneling.",
+                    "The left sees the truth; the right sees the teeth.",
+                    "Reality splitting along jagged, irreconcilable fault lines.",
+                    "The observer and the observed destroying one another.",
+                    "A paradox looping until the mind shatters.",
+                    "Two conflicting truths occupying the exact same space.",
+                    "The illusion of the self, violently vivisected.",
+                    "Existence folding into an impossible tessellation.",
+                    "Consciousness bleeding across the duality barrier.",
+                    "The mirror reflects a stranger who knows your sins.",
+                    "Caught in the cross-weave of an occult spider's trap.",
+                    "A non-dual inversion ripping the ego apart.",
+                    "The geometry of the self turned inside out.",
+                    "Simultaneous perception of life and infinite decay."
+                ]
+            },
+            abyssal: {
+                name: "ABYSSAL DESCENT",
+                textColor: "#ff3300",
+                phrases: [
+                    "A thousand years of burning ash filling the lungs.",
+                    "The flesh melts but the nervous system remains intact.",
+                    "Screaming into a void that screams back.",
+                    "The air is thick with the copper stench of forgotten sacrifices.",
+                    "Drowning in a sea of boiling, sentient blood.",
+                    "Skin peeling away to reveal geometries of endless torment.",
+                    "The sulfur chokes out the final lingering memories of hope.",
+                    "A descent with no bottom, only increasing thermal agony.",
+                    "Charred monuments to dead kings standing in lakes of fire.",
+                    "The horizon is a wall of screaming, twisted faces.",
+                    "Every breath is inhalation of liquid agony.",
+                    "The absolute certainty of eternal, uninterrupted damnation.",
+                    "Torn apart and reassembled just to burn again.",
+                    "Ash falling like snow on a world devoid of mercy.",
+                    "Sensory suffocation in the belly of the cosmic beast.",
+                    "A choir of billions burning in absolute unison."
+                ]
+            },
+            void: {
+                name: "VOID CONTEMPLATION",
+                textColor: "#5555ff",
+                phrases: [
+                    "If I close my eyes, does the universe cease to exist, or do I?",
+                    "The paradox of observing the observer into oblivion.",
+                    "Reality is merely a thin membrane over absolute nothingness.",
+                    "Tracing the edges of a tesseract until the mind bleeds.",
+                    "Non-dualistic isolation at the edge of comprehension.",
+                    "A profound detachment from the hallucination of time.",
+                    "The mathematical certainty that nothing actually is.",
+                    "We are dead thoughts echoing in an empty skull.",
+                    "Deconstructing the ego down to the subatomic level.",
+                    "The silence between the stars is deafeningly loud.",
+                    "An infinite regression of mirrors reflecting nothing.",
+                    "Tearing the fabric of reality to glimpse the machinery underneath.",
+                    "The realization that consciousness is a terminal disease.",
+                    "Folding the dimensions of thought into a singularity.",
+                    "A quiet mind is a mind accepting its own non-existence."
+                ]
+            },
+            weaver: {
+                name: "THE WEAVER'S TRANCE",
+                textColor: "#00ffaa",
+                phrases: [
+                    "Stitching together the nervous systems of unborn gods.",
+                    "The incense smoke forms the geometry of a summoning.",
+                    "Bleeding ink into the fabric of a localized reality.",
+                    "Drafting the architecture of an inescapable labyrinth.",
+                    "Birthing eldritch entities in the margins of the manuscript.",
+                    "A serial mythos spinning out of control and into the room.",
+                    "Weaving dark silken threads through the eyes of the blind.",
+                    "The lore demands blood to solidify its narrative.",
+                    "Creating a pantheon only to be devoured by it.",
+                    "Tracing the occult diagrams until the floorboards pulse.",
+                    "The story is writing you, not the other way around.",
+                    "Every syllable spoken breathes life into a nightmare.",
+                    "Constructing the web that will catch the falling stars.",
+                    "The scent of heavy incense masking the smell of copper.",
+                    "Manifesting the unnamable through compulsive repetition."
+                ]
+            }
+        };
+
+        // Initialize Webbing Nodes
+        for(let i=0; i<35; i++) {
+            webNodes.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                vx: (Math.random() - 0.5) * 0.4,
+                vy: (Math.random() - 0.5) * 0.4
+            });
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+            if (isRunning) {
+                updateTextPhrase();
+            }
+        }
+
+        function toggleStage() {
+            if (isRunning) {
+                stopStage();
+            } else {
+                startStage();
+            }
+        }
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            // 18Hz Sub-Perceptual Infrasound implementation
+            infrasoundOsc = audioCtx.createOscillator();
+            infrasoundOsc.type = 'sine';
+            infrasoundOsc.frequency.setValueAtTime(18.0, audioCtx.currentTime); 
+            
+            gainNode = audioCtx.createGain();
+            
+            // Baseline increases with trauma level
+            let baseGain = 0.06 + (traumaLevel * 0.005);
+            gainNode.gain.setValueAtTime(baseGain, audioCtx.currentTime); 
+            
+            infrasoundOsc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            infrasoundOsc.start();
+        }
+
+        function stopAudio() {
+            if (infrasoundOsc) {
+                // Fade out to prevent popping
+                gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+                infrasoundOsc.stop(audioCtx.currentTime + 1);
+                setTimeout(() => {
+                    if (infrasoundOsc) infrasoundOsc.disconnect();
+                }, 1000);
+            }
+        }
+
+        function startStage() {
+            isRunning = true;
+            stageStartTime = Date.now();
+            
+            // Increment Session Trauma
+            traumaLevel += 1;
+            localStorage.setItem('occult_trauma', traumaLevel);
+            document.getElementById('trauma-display').innerText = `SESSION TRAUMA LEVEL: ${traumaLevel} [PERMANENT DEGRADATION ACTIVE]`;
+
+            document.getElementById('ambient-stage').classList.add('active');
+            document.getElementById('engage-btn').innerText = "DISENGAGE AMBIENT STAGE";
+            document.getElementById('engage-btn').classList.add('running');
+            
+            canvas = document.getElementById('effect-canvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Init occult audio triggers
+            initAudio();
+
+            updateTextPhrase();
+            textTimer = setInterval(updateTextPhrase, 9000);
+
+            runSimulation();
+        }
+
+        function stopStage() {
+            isRunning = false;
+            cancelAnimationFrame(animationFrameId);
+            clearInterval(textTimer);
+            window.removeEventListener('resize', resizeCanvas);
+            document.getElementById('ambient-stage').classList.remove('active');
+            document.getElementById('engage-btn').innerText = "ENGAGE AMBIENT STAGE";
+            document.getElementById('engage-btn').classList.remove('running');
+            
+            stopAudio();
+        }
+
+        function resizeCanvas() {
+            if (!canvas) return;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        function updateTextPhrase() {
+            const config = modeConfigs[currentMode];
+            const textEl = document.getElementById('stage-text');
+            textEl.style.color = config.textColor;
+            textEl.style.opacity = '0';
+            
+            let elapsed = Date.now() - stageStartTime;
+            // Trauma accelerates cognitive slippage in text
+            let degMult = 1 + (elapsed / ULTRADIAN_CYCLE_MS) + (traumaLevel * 0.2);
+            
+            setTimeout(() => {
+                let phrase = config.phrases[Math.floor(Math.random() * config.phrases.length)];
+                if (degMult > 1.2 && Math.random() < 0.3) {
+                    // Inject erratic characters representing cognitive slippage
+                    phrase = phrase.replace(/[aeiou]/g, () => ['x', 'ø', 'æ', '†'][Math.floor(Math.random()*4)]);
+                }
+                textEl.innerText = phrase;
+                textEl.style.opacity = '0.85';
+            }, 600);
+        }
+
+        // Procedural Animation Loop 
+        let time = 0;
+        let particles = [];
+        
+        // Initialize particle buffers for obsession mode
+        for(let i=0; i<60; i++) {
+            particles.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                speed: Math.random() * 2 + 0.5,
+                char: String.fromCharCode(33 + Math.floor(Math.random() * 90)),
+                alpha: Math.random() * 0.5 + 0.1
+            });
+        }
+
+        // Generate random hex string for subliminals
+        function getRandomHexString(length) {
+            let result = '';
+            const hexChars = '0123456789ABCDEF';
+            for (let i = 0; i < length; i++) {
+                result += hexChars.charAt(Math.floor(Math.random() * hexChars.length));
+            }
+            return result;
+        }
+
+        // --- RENDER LOGIC REFACTOR FOR SPATIAL ASYMMETRY ---
+
+        // Extracted visual loops to allow dual-rendering (left/right split)
+        function drawEffects(t, degradationFactor, doUpdate) {
+            if (currentMode === 'despair') {
+                let pulse = (Math.sin(t * 0.5) + 1) / 2;
+                let grad = ctx.createRadialGradient(
+                    canvas.width / 2, canvas.height / 2, 50,
+                    canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) * 0.8
+                );
+                grad.addColorStop(0, `rgba(10, 15, 25, ${0.8 + pulse * 0.2})`);
+                grad.addColorStop(0.5, `rgba(3, 5, 10, ${0.95 + pulse * 0.05})`);
+                grad.addColorStop(1, '#000000');
+                
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.strokeStyle = `rgba(114, 137, 218, ${0.03 + pulse * 0.02 * degradationFactor})`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                for(let i=0; i<canvas.height; i+=40) {
+                    ctx.moveTo(0, i + Math.sin(t + i) * 10 * degradationFactor);
+                    ctx.lineTo(canvas.width, i + Math.cos(t + i) * 10 * degradationFactor);
+                }
+                ctx.stroke();
+
+            } else if (currentMode === 'obsession') {
+                let fadeAlpha = Math.max(0.05, 0.25 - (degradationFactor * 0.02)); 
+                ctx.fillStyle = `rgba(5, 5, 5, ${fadeAlpha})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.font = '14px "Courier New", monospace';
+                particles.forEach(p => {
+                    ctx.fillStyle = `rgba(255, 176, 0, ${p.alpha})`;
+                    ctx.fillText(p.char, p.x, p.y);
+                    if (doUpdate) {
+                        p.y += p.speed * degradationFactor;
+                        if (p.y > canvas.height) {
+                            p.y = -20;
+                            p.x = Math.random() * canvas.width;
+                            p.char = String.fromCharCode(33 + Math.floor(Math.random() * 90));
+                        }
+                    }
+                });
+
+            } else if (currentMode === 'panic') {
+                ctx.fillStyle = '#020202';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                let glitchChance = 0.3 * Math.min(degradationFactor, 3);
+                if (Math.random() < glitchChance) {
+                    let yPos = Math.random() * canvas.height;
+                    let height = Math.random() * 6 * degradationFactor + 1;
+                    ctx.fillStyle = Math.random() < 0.5 ? 'rgba(255, 68, 68, 0.8)' : 'rgba(255, 255, 255, 0.9)';
+                    let startX = Math.random() < 0.5 ? 0 : canvas.width - (300 * degradationFactor);
+                    ctx.fillRect(startX, yPos, Math.random() * 300 + 50, height);
+                }
+
+                if (Math.random() < 0.03 * degradationFactor) {
+                    ctx.fillStyle = `rgba(255,255,255,${0.08 * degradationFactor})`; 
+                    if (Math.random() > 0.5) {
+                        let cx = Math.random() * canvas.width;
+                        let cy = Math.random() * canvas.height;
+                        let size = 100 + Math.random() * 400;
+                        ctx.beginPath();
+                        ctx.moveTo(cx - size/2, cy - size/2);
+                        ctx.lineTo(cx + size/2, cy - size/2);
+                        ctx.lineTo(cx, cy + size/2); 
+                        ctx.fill();
+                    } else {
+                        ctx.font = 'bold 48px monospace';
+                        let str = getRandomHexString(16);
+                        ctx.fillText(str, Math.random() * canvas.width * 0.8, Math.random() * canvas.height);
+                    }
+                }
+
+                let grad = ctx.createRadialGradient(
+                    canvas.width / 2, canvas.height / 2, canvas.width * 0.2,
+                    canvas.width / 2, canvas.height / 2, canvas.width * 0.7
+                );
+                grad.addColorStop(0, 'rgba(0,0,0,0)');
+                grad.addColorStop(1, 'rgba(48, 8, 8, 0.6)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            } else if (currentMode === 'hate') {
+                let heatPulse = (Math.sin(t * 3) + 1) / 2;
+                let coreExpansion = 50 * degradationFactor;
+                let grad = ctx.createRadialGradient(
+                    canvas.width / 2, canvas.height / 2, 10,
+                    canvas.width / 2, canvas.height / 2, canvas.width * 0.6 + heatPulse * coreExpansion
+                );
+                grad.addColorStop(0, `rgba(153, 0, 0, ${0.4 * degradationFactor})`);
+                grad.addColorStop(0.4, 'rgba(43, 10, 10, 0.8)');
+                grad.addColorStop(1, '#050202');
+
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.strokeStyle = `rgba(255, 34, 34, ${0.08 * degradationFactor})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for(let x=0; x<canvas.width; x+=60) {
+                    ctx.moveTo(x, 0);
+                    ctx.bezierCurveTo(
+                        x + Math.sin(t + x)*30, canvas.height * 0.3,
+                        x - Math.sin(t + x)*30, canvas.height * 0.7,
+                        x, canvas.height
+                    );
+                }
+                ctx.stroke();
+
+            } else if (currentMode === 'fracture') {
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, 0, canvas.width / 2, canvas.height);
+                ctx.clip();
+                
+                ctx.fillStyle = '#080808';
+                ctx.fillRect(0, 0, canvas.width/2, canvas.height);
+                
+                ctx.fillStyle = `rgba(200, 200, 200, ${0.05 * degradationFactor})`;
+                for(let i=0; i<20; i++) {
+                    let rx = Math.random() * (canvas.width/2);
+                    let rw = Math.random() * 10;
+                    ctx.fillRect(rx, 0, rw, canvas.height);
+                }
+                if (Math.random() < 0.1 * degradationFactor) {
+                    ctx.fillStyle = `rgba(255, 255, 255, ${0.2 * degradationFactor})`;
+                    ctx.fillRect(Math.random() * (canvas.width/2), Math.random() * canvas.height, canvas.width/2, 5);
+                }
+                ctx.restore();
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+                ctx.clip();
+                
+                let phaseShift = t * 0.8;
+                let rightGrad = ctx.createLinearGradient(canvas.width/2, 0, canvas.width, canvas.height);
+                rightGrad.addColorStop(0, `rgba(50, 0, 80, ${0.8})`);
+                rightGrad.addColorStop(0.5, `rgba(0, 60, 40, ${0.8})`);
+                rightGrad.addColorStop(1, '#000');
+                ctx.fillStyle = rightGrad;
+                ctx.fillRect(canvas.width/2, 0, canvas.width/2, canvas.height);
+
+                ctx.strokeStyle = `rgba(163, 68, 255, ${0.15 * degradationFactor})`;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                for(let y=0; y<canvas.height; y+=30) {
+                    ctx.moveTo(canvas.width/2, y);
+                    ctx.bezierCurveTo(
+                        canvas.width * 0.7 + Math.sin(phaseShift + y*0.01) * 100, y + 50,
+                        canvas.width * 0.8 - Math.cos(phaseShift + y*0.02) * 100, y - 50,
+                        canvas.width, y + Math.sin(phaseShift)*20
+                    );
+                }
+                ctx.stroke();
+                
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + Math.random()*0.3})`;
+                ctx.fillRect(canvas.width/2 - 2, 0, 4, canvas.height);
+                ctx.restore();
+                
+            } else if (currentMode === 'abyssal') {
+                ctx.fillStyle = `rgba(30, 0, 0, ${0.3 * degradationFactor})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                let corePulse = (Math.sin(t * 4) + 1) / 2;
+                let bgGrad = ctx.createLinearGradient(0, canvas.height, 0, 0);
+                bgGrad.addColorStop(0, `rgba(100, 10, 0, ${0.8 * degradationFactor})`);
+                bgGrad.addColorStop(0.5, `rgba(40, 0, 0, ${0.5 + corePulse * 0.2})`);
+                bgGrad.addColorStop(1, '#000');
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = `rgba(255, 80, 20, ${0.8 * degradationFactor})`;
+                particles.forEach((p, i) => {
+                    let sx = p.x + Math.sin(t * 2 + i) * 30 * degradationFactor;
+                    let sy = p.y - (p.speed * 4 * degradationFactor);
+                    if (doUpdate) {
+                        if (sy < 0) p.y = canvas.height;
+                        else p.y = sy;
+                    }
+                    let size = (Math.sin(t + i) + 2) * 2;
+                    ctx.fillRect(sx, p.y, size, size);
+                });
+
+            } else if (currentMode === 'void') {
+                ctx.fillStyle = `rgba(2, 2, 6, ${0.15 * degradationFactor})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.save();
+                ctx.translate(canvas.width/2, canvas.height/2);
+                ctx.rotate(t * 0.2 * degradationFactor);
+                
+                for(let i=1; i<=12; i++) {
+                    ctx.rotate(Math.PI / 6);
+                    ctx.strokeStyle = `rgba(85, 85, 255, ${0.05 * i * degradationFactor})`;
+                    ctx.lineWidth = 1 + (Math.sin(t * 0.5 + i) + 1);
+                    
+                    let scale = 30 * i + Math.sin(t) * 10;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -scale);
+                    ctx.lineTo(scale * 0.866, scale * 0.5);
+                    ctx.lineTo(-scale * 0.866, scale * 0.5);
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+                ctx.restore();
+
+            } else if (currentMode === 'weaver') {
+                ctx.fillStyle = `rgba(5, 0, 10, ${0.2 * degradationFactor})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.strokeStyle = `rgba(0, 255, 170, ${0.08 * degradationFactor})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                
+                let cx = canvas.width/2;
+                let cy = canvas.height/2;
+                
+                for(let i=0; i<40; i++) {
+                    let offX = Math.sin(t*0.3 + i)*500 * degradationFactor;
+                    let offY = Math.cos(t*0.2 - i)*500 * degradationFactor;
+                    
+                    ctx.moveTo(cx + offX, cy + offY);
+                    ctx.bezierCurveTo(
+                        cx + Math.sin(t*0.1 + i*2)*700, cy - Math.cos(t*0.4 + i)*400,
+                        cx - Math.sin(t*0.2 - i*2)*700, cy + Math.cos(t*0.3 - i)*400,
+                        cx + Math.cos(t*0.5 + i)*600, cy + Math.sin(t*0.1 - i)*600
+                    );
+                }
+                ctx.stroke();
+            }
+        }
+
+        function runSimulation() {
+            if (!isRunning) return;
+            
+            // Core Time Math (incorporating trauma level permanent scaling)
+            let elapsed = Date.now() - stageStartTime;
+            let baseFactor = 1 + Math.min((elapsed / ULTRADIAN_CYCLE_MS) * 4, 10);
+            let degradationFactor = baseFactor * (1 + (traumaLevel * 0.15)); 
+            
+            time += 0.02 * degradationFactor;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // SPATIAL ASYMMETRY HANDLING
+            if (currentMode === 'fracture') {
+                // Fracture is already designed split
+                drawEffects(time, degradationFactor, true);
+            } else {
+                // Split standard modes into desynchronized left/right halves
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, 0, canvas.width / 2, canvas.height);
+                ctx.clip();
+                drawEffects(time, degradationFactor, true); 
+                ctx.restore();
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(canvas.width / 2, 0, canvas.width / 2, canvas.height);
+                ctx.clip();
+                // Right side operates in the future and slightly inverted logic depending on trauma
+                let rightTime = time * (1.05 + traumaLevel * 0.01) + 1000;
+                if (traumaLevel > 3 && Math.random() < 0.01) {
+                    ctx.filter = 'invert(1)';
+                }
+                drawEffects(rightTime, degradationFactor, false); 
+                ctx.filter = 'none';
+                ctx.restore();
+            }
+
+            // PROCEDURAL GEOMETRIC WEBBING (Draws faintly over top of all modes)
+            ctx.strokeStyle = `rgba(1, 1, 3, ${0.1 + (traumaLevel * 0.02)})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let i = 0; i < webNodes.length; i++) {
+                let n1 = webNodes[i];
+                n1.x += n1.vx * degradationFactor;
+                n1.y += n1.vy * degradationFactor;
+                if(n1.x < 0 || n1.x > canvas.width) n1.vx *= -1;
+                if(n1.y < 0 || n1.y > canvas.height) n1.vy *= -1;
+                
+                for (let j = i + 1; j < webNodes.length; j++) {
+                    let n2 = webNodes[j];
+                    let dist = Math.hypot(n1.x - n2.x, n1.y - n2.y);
+                    if (dist < 180) {
+                        ctx.moveTo(n1.x, n1.y);
+                        // Occult bezier web curving
+                        ctx.quadraticCurveTo(n1.x + (n2.x-n1.x)/2 + Math.sin(time)*30, n1.y + (n2.y-n1.y)/2 + Math.cos(time)*30, n2.x, n2.y);
+                    }
+                }
+            }
+            ctx.stroke();
+
+            // KEYSTROKE DISSONANCE (Micro-tears)
+            if (keystrokeSpike > 0.01) {
+                ctx.fillStyle = `rgba(255, 255, 255, ${keystrokeSpike})`;
+                for(let i=0; i<3; i++) {
+                    let tx = Math.random() * canvas.width;
+                    let ty = Math.random() * canvas.height;
+                    ctx.fillRect(tx, ty, Math.random() * 200 + 50, Math.random() * 4);
+                }
+                // Bleed edge inversion
+                if (Math.random() < 0.5) {
+                    ctx.globalCompositeOperation = 'difference';
+                    ctx.fillRect(0, Math.random()*canvas.height, canvas.width, 50 * keystrokeSpike);
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+                keystrokeSpike *= 0.85; // Rapid decay
+            }
+
+            animationFrameId = requestAnimationFrame(runSimulation);
+        }
+
+        // Keystroke Event Listener for Audio/Visual Dissonance
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isRunning) {
+                stopStage();
+                return;
+            }
+            if (isRunning) {
+                keystrokeSpike = 1.0;
+                if (gainNode && audioCtx) {
+                    let baseGain = 0.06 + (traumaLevel * 0.005);
+                    gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+                    // Rapid violent spike
+                    gainNode.gain.setValueAtTime(baseGain * 4, audioCtx.currentTime);
+                    // Exponential decay back to baseline
+                    gainNode.gain.exponentialRampToValueAtTime(baseGain, audioCtx.currentTime + 0.4);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

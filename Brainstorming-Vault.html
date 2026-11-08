@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garrett's Brainstorming Vault</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 2rem auto; padding: 0 1rem; background-color: #1e1e1e; color: #e0e0e0; }
+        h2 { margin-bottom: 5px; color: #fff; display: flex; justify-content: space-between; align-items: baseline; }
+        .credit-line { font-size: 0.85em; color: #888; padding-bottom: 15px; border-bottom: 1px solid #444; margin-bottom: 20px; }
+        .credit-line a { color: #7289da; text-decoration: none; }
+        
+        .layout-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media(min-width: 850px) { .layout-grid { grid-template-columns: 380px 1fr; } }
+        
+        .panel { background: #252525; padding: 20px; border-radius: 6px; border: 1px solid #444; position: sticky; top: 20px; }
+        .panel h3 { margin-top: 0; color: #7289da; border-bottom: 1px solid #444; padding-bottom: 10px; font-size: 1.1em; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        
+        label { font-size: 0.9em; font-weight: bold; color: #aaa; display: block; margin-top: 15px; margin-bottom: 5px; }
+        
+        input[type="text"], select, textarea { width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #555; color: #fff; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 14px; }
+        input[type="file"] { display: none; }
+        textarea { height: 200px; resize: vertical; line-height: 1.5; }
+        
+        button { background-color: #7289da; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 4px; cursor: pointer; margin-top: 15px; font-weight: bold; transition: background 0.2s; width: 100%; }
+        button:hover { background-color: #5b6eae; }
+        button.secondary { background-color: #4CAF50; margin-top: 0; padding: 8px 12px; font-size: 13px; width: auto; }
+        button.secondary:hover { background-color: #388E3C; }
+        button.tertiary { background-color: #00796b; margin-top: 0; padding: 8px 12px; font-size: 13px; width: auto; }
+        button.tertiary:hover { background-color: #004d40; }
+        button.pdf-btn { background-color: #d32f2f; margin-top: 0; padding: 8px 12px; font-size: 13px; width: auto; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button.pdf-btn:hover { background-color: #b71c1c; }
+        button.action-btn { background-color: transparent; border: 1px solid #888; color: #ccc; padding: 6px 12px; font-size: 12px; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+        button.action-btn:hover { background-color: #444; color: #fff; border-color: #aaa; }
+        button.action-btn.danger { border-color: #f44336; color: #f44336; }
+        button.action-btn.danger:hover { background-color: #f44336; color: white; }
+        button.action-btn.pinned { background-color: #ffb000; color: #000; border-color: #ffb000; font-weight: bold; }
+
+        .btn-group-header { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+
+        /* Formatting Toolbar */
+        .fmt-toolbar { display: flex; gap: 5px; margin-bottom: 5px; flex-wrap: wrap; background: #1a1a1a; padding: 6px; border-radius: 4px; border: 1px solid #444; }
+        .fmt-btn { background: #2a2a2a; border: 1px solid #555; color: #eee; padding: 4px 8px; font-size: 12px; border-radius: 3px; cursor: pointer; margin: 0; width: auto; }
+        .fmt-btn:hover { background: #444; }
+
+        /* Vault Entries */
+        .search-bar { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+        .bulk-bar { display: flex; gap: 10px; margin-bottom: 15px; background: #1a1a1a; padding: 10px; border-radius: 4px; border: 1px solid #333; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+        .entries-container { display: flex; flex-direction: column; gap: 15px; max-height: 750px; overflow-y: auto; padding-right: 5px; }
+        
+        .entry-card { background: #2d2d2d; border: 1px solid #444; border-radius: 6px; padding: 15px; position: relative; transition: border-color 0.2s; }
+        .entry-card:hover { border-color: #666; }
+        .entry-card.is-pinned { border-left: 4px solid #ffb000; }
+        .entry-card.selected { border-color: #7289da; background: #323544; }
+        
+        .entry-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 10px; }
+        .entry-title-group { display: flex; align-items: center; gap: 10px; }
+        .entry-title { font-size: 1.15em; font-weight: bold; color: #fff; margin: 0; }
+        .entry-date { font-size: 0.75em; color: #888; display: block; text-align: right;}
+        .entry-content { font-size: 0.95em; line-height: 1.6; color: #ccc; background: #1e1e1e; padding: 14px; border-radius: 4px; border-left: 3px solid #7289da; margin-bottom: 12px; word-break: break-word; }
+        
+        /* Markdown Style Overrides inside rendered entry content */
+        .entry-content h1, .entry-content h2, .entry-content h3 { color: #fff; margin-top: 10px; margin-bottom: 5px; }
+        .entry-content blockquote { border-left: 3px solid #7289da; margin: 8px 0; padding-left: 10px; color: #aaa; font-style: italic; background: #1a1a1a; padding: 8px 10px; border-radius: 0 4px 4px 0;}
+        .entry-content code { background: #111; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #ffb000; font-size: 0.9em; border: 1px solid #333;}
+        .entry-content ul, .entry-content ol { margin: 8px 0; padding-left: 20px; }
+        .entry-content li { margin-bottom: 4px; }
+        .entry-content p { margin: 0 0 8px 0; }
+        .entry-content p:last-child { margin-bottom: 0; }
+
+        .card-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+        .tag { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.75em; font-weight: bold; margin-top: 5px; color: #fff; }
+
+        /* Modals */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.75); align-items: center; justify-content: center; }
+        .modal-content { background-color: #252525; padding: 20px; border: 1px solid #555; border-radius: 6px; width: 100%; max-width: 500px; color: #fff; box-sizing: border-box; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 15px; }
+        .modal-header h4 { margin: 0; color: #7289da; }
+        .close-btn { background: none; border: none; color: #aaa; font-size: 20px; cursor: pointer; padding: 0; width: auto; }
+        .close-btn:hover { color: #fff; }
+
+        .cat-list { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; margin-bottom: 15px; }
+        .cat-item { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 8px 12px; border-radius: 4px; border: 1px solid #333; }
+
+        /* --- PDF PRINTING SYSTEM --- */
+        #print-container { display: none; }
+        
+        @media print {
+            body { background-color: #fff; color: #000; margin: 0; padding: 0; font-size: 12pt; }
+            .no-print { display: none !important; }
+            #print-container { display: block !important; }
+            
+            .print-header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+            .print-header h1 { margin: 0 0 5px 0; font-size: 20pt; color: #000; }
+            .print-header p { margin: 0; font-size: 10pt; color: #555; }
+
+            .print-card { page-break-inside: avoid; border-bottom: 1px solid #ccc; margin-bottom: 20px; padding-bottom: 15px; }
+            .print-title { font-size: 16pt; font-weight: bold; margin-bottom: 4px; color: #000; }
+            .print-meta { font-size: 10pt; color: #555; margin-bottom: 10px; font-style: italic; }
+            .print-content { font-size: 11pt; line-height: 1.5; color: #222; }
+            
+            .print-content h1, .print-content h2, .print-content h3 { color: #000; margin-top: 10px; margin-bottom: 5px; }
+            .print-content code { background: #eee; padding: 2px 4px; border: 1px solid #ccc; font-family: monospace; }
+            .print-content blockquote { border-left: 3px solid #000; padding-left: 10px; margin: 8px 0; color: #444; }
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #777; }
+    </style>
+</head>
+<body>
+
+    <!-- HIDDEN CONTAINER EXCLUSIVELY FOR PDF GENERATION -->
+    <div id="print-container"></div>
+
+    <!-- MAIN APP UI -->
+    <div class="layout-grid no-print">
+        
+        <!-- LEFT PANEL: INPUT COMPOSER -->
+        <div class="panel">
+            <h3 id="composer-header">Log New Idea</h3>
+            
+            <input type="hidden" id="editing-id" value="">
+
+            <label>Title / Concept Name</label>
+            <input type="text" id="idea-title" placeholder="e.g., The shadow in the static...">
+
+            <label style="display: flex; justify-content: space-between; align-items: center;">
+                <span>Category</span>
+                <a href="#" onclick="openCatModal()" style="color: #7289da; text-decoration: none; font-size: 0.85em; font-weight: normal;">+ Manage Custom</a>
+            </label>
+            <select id="idea-category"></select>
+
+            <label>The Idea (Markdown Supported)</label>
+            <div class="fmt-toolbar">
+                <button type="button" class="fmt-btn" onclick="insertFormat('**', '**')"><b>B</b></button>
+                <button type="button" class="fmt-btn" onclick="insertFormat('*', '*')"><i>I</i></button>
+                <button type="button" class="fmt-btn" onclick="insertFormat('### ', '')">H3</button>
+                <button type="button" class="fmt-btn" onclick="insertFormat('> ', '')">Quote</button>
+                <button type="button" class="fmt-btn" onclick="insertFormat('- ', '')">Bullet</button>
+                <button type="button" class="fmt-btn" onclick="insertFormat('`', '`')">Code</button>
+            </div>
+            <textarea id="idea-content" placeholder="Jot down details, imagery, lists, or snippets using markdown formatting..."></textarea>
+
+            <div style="display: flex; gap: 10px;">
+                <button id="cancel-edit-btn" class="action-btn" style="display: none; margin-top: 15px; width: auto;" onclick="resetComposer()">Cancel</button>
+                <button id="submit-btn" onclick="commitIdea()">Save to Vault</button>
+            </div>
+            <span id="save-confirm" style="color: #4CAF50; font-size: 0.9em; display: none; text-align: center; margin-top: 10px;">Idea Saved!</span>
+        </div>
+
+        <!-- RIGHT PANEL: VAULT DISPLAY -->
+        <div class="panel">
+            <h3>
+                <span>Vault Archive <span id="vault-count" style="font-size: 0.8em; color: #888; font-weight: normal; margin-left: 10px;">0 entries</span></span>
+                <div class="btn-group-header">
+                    <button class="pdf-btn" onclick="openPdfModal()">Export to PDF</button>
+                    <button class="secondary" style="background-color: #616161;" onclick="exportText()">Export (.txt)</button>
+                    <button class="tertiary" onclick="exportJSONBackup()">Export JSON</button>
+                    <button class="tertiary" onclick="document.getElementById('import-file').click()" style="background-color: #006064;">Restore JSON</button>
+                    <input type="file" id="import-file" accept=".json" onchange="importJSONBackup(event)">
+                </div>
+            </h3>
+            
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search ideas..." onkeyup="renderVault()" style="flex: 1;">
+                <select id="filter-category" onchange="renderVault()" style="width: 180px;"></select>
+            </div>
+
+            <!-- BULK ACTION BAR -->
+            <div class="bulk-bar">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="select-all-cb" onchange="toggleSelectAll(this.checked)" style="width: auto;">
+                    <span id="selected-count" style="font-size: 0.85em; color: #aaa;">0 selected</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <select id="bulk-cat-select" style="width: 150px; padding: 6px; font-size: 12px;">
+                        <option value="">-- Move to Category --</option>
+                    </select>
+                    <button class="action-btn" onclick="applyBulkCategory()">Apply</button>
+                    <button class="action-btn danger" onclick="bulkDelete()">Delete Selected</button>
+                </div>
+            </div>
+
+            <div class="entries-container" id="vault-container"></div>
+        </div>
+    </div>
+
+    <!-- CATEGORY MANAGER MODAL -->
+    <div id="cat-modal" class="modal no-print">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4>Manage Custom Categories</h4>
+                <button class="close-btn" onclick="closeCatModal()">&times;</button>
+            </div>
+            <div class="cat-list" id="modal-cat-list"></div>
+            <div style="border-top: 1px solid #444; padding-top: 15px; display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="new-cat-name" placeholder="Category Name" style="flex: 1;">
+                <input type="color" id="new-cat-color" value="#00796b" style="width: 45px; height: 38px; border: none; cursor: pointer; background: transparent;">
+                <button class="secondary" onclick="addCustomCategory()" style="margin-top:0;">Add Category</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF EXPORT SETTINGS MODAL -->
+    <div id="pdf-modal" class="modal no-print">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4>PDF Export Configurations</h4>
+                <button class="close-btn" onclick="closePdfModal()">&times;</button>
+            </div>
+            
+            <label>Document Title / Header</label>
+            <input type="text" id="pdf-doc-title" value="Garrett's Brainstorming Vault — Master Index">
+
+            <label>Scope to Export</label>
+            <select id="pdf-scope">
+                <option value="all">Export Entire Vault Archive</option>
+                <option value="filtered">Export Currently Filtered View Only</option>
+                <option value="selected">Export Only Selected Checked Entries</option>
+            </select>
+
+            <button class="pdf-btn" onclick="executePdfExport()" style="width: 100%; margin-top: 20px; padding: 12px;">Generate Printable PDF View</button>
+        </div>
+    </div>
+
+    <script>
+        let vaultEntries = [];
+        let categories = [
+            { id: 'dreams', name: 'Dreams & Nightmares', color: '#673ab7' },
+            { id: 'lore', name: 'Cosmic Horror / Lore', color: '#d32f2f' },
+            { id: 'tech', name: 'Retro Hardware', color: '#00796b' },
+            { id: 'plot', name: 'Plot Hooks & Arcs', color: '#1976d2' },
+            { id: 'visuals', name: 'Visuals & Atmosphere', color: '#e91e63' },
+            { id: 'general', name: 'General Idea', color: '#616161' }
+        ];
+        let selectedIds = new Set();
+
+        window.onload = function() {
+            // Load Categories
+            const storedCat = localStorage.getItem('garrettVaultCategories');
+            if (storedCat) {
+                try { categories = JSON.parse(storedCat); } catch(e) {}
+            }
+
+            // Load Entries
+            const storedVault = localStorage.getItem('garrettBrainstormVault');
+            if (storedVault) {
+                try { 
+                    vaultEntries = JSON.parse(storedVault); 
+                    // Make sure old entries without a category get a default one
+                    vaultEntries.forEach(e => {
+                        if(!e.category) e.category = categories[0].id;
+                    });
+                } catch (e) { vaultEntries = []; }
+            }
+
+            populateCategoryDropdowns();
+            renderVault();
+        };
+
+        /* CATEGORY MANAGEMENT */
+        function saveCategories() {
+            localStorage.setItem('garrettVaultCategories', JSON.stringify(categories));
+            populateCategoryDropdowns();
+            renderVault();
+        }
+
+        function populateCategoryDropdowns() {
+            const composerSelect = document.getElementById('idea-category');
+            const filterSelect = document.getElementById('filter-category');
+            const bulkSelect = document.getElementById('bulk-cat-select');
+
+            const currentComposerVal = composerSelect.value;
+            const currentFilterVal = filterSelect.value;
+
+            composerSelect.innerHTML = '';
+            filterSelect.innerHTML = '<option value="all">All Categories</option>';
+            bulkSelect.innerHTML = '<option value="">-- Move to Category --</option>';
+
+            categories.forEach(c => {
+                composerSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                filterSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                bulkSelect.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+
+            if (currentComposerVal && categories.some(c => c.id === currentComposerVal)) composerSelect.value = currentComposerVal;
+            if (currentFilterVal) filterSelect.value = currentFilterVal;
+        }
+
+        function openCatModal() {
+            renderCatList();
+            document.getElementById('cat-modal').style.display = 'flex';
+        }
+
+        function closeCatModal() {
+            document.getElementById('cat-modal').style.display = 'none';
+        }
+
+        function renderCatList() {
+            const container = document.getElementById('modal-cat-list');
+            container.innerHTML = '';
+            categories.forEach(c => {
+                container.innerHTML += `
+                    <div class="cat-item">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="width:14px; height:14px; background:${c.color}; border-radius:50%; display:inline-block;"></span>
+                            <span style="font-weight:bold; font-size:0.9em;">${c.name}</span>
+                        </div>
+                        <button class="action-btn danger" onclick="deleteCustomCategory('${c.id}')" ${categories.length <= 1 ? 'disabled' : ''}>Delete</button>
+                    </div>
+                `;
+            });
+        }
+
+        function addCustomCategory() {
+            const nameInput = document.getElementById('new-cat-name');
+            const colorInput = document.getElementById('new-cat-color');
+            const name = nameInput.value.trim();
+            if (!name) return;
+
+            const id = 'cat-' + Date.now();
+            categories.push({ id: id, name: name, color: colorInput.value });
+            nameInput.value = '';
+            saveCategories();
+            renderCatList();
+        }
+
+        function deleteCustomCategory(id) {
+            if (categories.length <= 1) return;
+            categories = categories.filter(c => c.id !== id);
+            vaultEntries.forEach(e => {
+                if (e.category === id) e.category = categories[0].id;
+            });
+            localStorage.setItem('garrettBrainstormVault', JSON.stringify(vaultEntries));
+            saveCategories();
+            renderCatList();
+        }
+
+        /* MARKDOWN PARSER */
+        function parseMarkdown(text) {
+            if (!text) return '';
+            let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+            html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            html = html.replace(/^&gt;\s?(.*$)/gim, '<blockquote>$1</blockquote>');
+            html = html.replace(/^\s*[\-\*]\s+(.*$)/gim, '<ul><li>$1</li></ul>');
+            html = html.replace(/<\/ul>\s*<ul>/g, ''); 
+            
+            const lines = html.split('\n');
+            let result = '';
+            lines.forEach(line => {
+                let trimmed = line.trim();
+                if (trimmed.startsWith('<h') || trimmed.startsWith('<blockquote') || trimmed.startsWith('<ul') || trimmed.startsWith('<li')) {
+                    result += line + '\n';
+                } else if (trimmed.length > 0) {
+                    result += '<p>' + line + '</p>';
+                } else {
+                    result += '\n';
+                }
+            });
+            return result;
+        }
+
+        function insertFormat(startTag, endTag) {
+            const textarea = document.getElementById('idea-content');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const selText = textarea.value.substring(start, end);
+            const replacement = startTag + selText + endTag;
+            
+            textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end);
+            textarea.focus();
+            textarea.setSelectionRange(start + startTag.length, end + startTag.length);
+        }
+
+        /* CORE OPERATIONS */
+        function commitIdea() {
+            const editId = document.getElementById('editing-id').value;
+            const title = document.getElementById('idea-title').value.trim();
+            const category = document.getElementById('idea-category').value;
+            const content = document.getElementById('idea-content').value.trim();
+
+            if (!title || !content) {
+                alert("Please provide both a title and the idea content.");
+                return;
+            }
+
+            if (editId) {
+                const target = vaultEntries.find(e => e.id === editId);
+                if (target) {
+                    target.title = title;
+                    target.category = category;
+                    target.content = content;
+                }
+            } else {
+                const newEntry = {
+                    id: 'idea-' + Date.now(),
+                    title: title,
+                    category: category,
+                    content: content,
+                    pinned: false,
+                    date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                };
+                vaultEntries.unshift(newEntry);
+            }
+
+            localStorage.setItem('garrettBrainstormVault', JSON.stringify(vaultEntries));
+            resetComposer();
+            
+            const confirmMsg = document.getElementById('save-confirm');
+            confirmMsg.style.display = 'block';
+            setTimeout(() => confirmMsg.style.display = 'none', 2000);
+
+            renderVault();
+        }
+
+        function editIdea(id) {
+            const target = vaultEntries.find(e => e.id === id);
+            if (!target) return;
+
+            document.getElementById('editing-id').value = target.id;
+            document.getElementById('idea-title').value = target.title;
+            document.getElementById('idea-category').value = target.category || categories[0].id;
+            document.getElementById('idea-content').value = target.content;
+
+            document.getElementById('composer-header').innerText = 'Edit Existing Idea';
+            document.getElementById('submit-btn').innerText = 'Update Idea in Vault';
+            document.getElementById('cancel-edit-btn').style.display = 'block';
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetComposer() {
+            document.getElementById('editing-id').value = '';
+            document.getElementById('idea-title').value = '';
+            document.getElementById('idea-content').value = '';
+            if(categories.length > 0) document.getElementById('idea-category').value = categories[0].id;
+            
+            document.getElementById('composer-header').innerText = 'Log New Idea';
+            document.getElementById('submit-btn').innerText = 'Save to Vault';
+            document.getElementById('cancel-edit-btn').style.display = 'none';
+        }
+
+        function deleteIdea(id) {
+            if (confirm("Are you sure you want to permanently delete this idea?")) {
+                vaultEntries = vaultEntries.filter(entry => entry.id !== id);
+                selectedIds.delete(id);
+                localStorage.setItem('garrettBrainstormVault', JSON.stringify(vaultEntries));
+                renderVault();
+            }
+        }
+
+        function togglePin(id) {
+            const target = vaultEntries.find(e => e.id === id);
+            if (target) {
+                target.pinned = !target.pinned;
+                localStorage.setItem('garrettBrainstormVault', JSON.stringify(vaultEntries));
+                renderVault();
+            }
+        }
+
+        /* BULK ACTIONS */
+        function toggleSelectEntry(id, checked) {
+            if (checked) selectedIds.add(id);
+            else selectedIds.delete(id);
+            updateSelectedUI();
+        }
+
+        function toggleSelectAll(checked) {
+            const visibleIds = getCurrentlyVisibleEntries().map(e => e.id);
+            if (checked) {
+                visibleIds.forEach(id => selectedIds.add(id));
+            } else {
+                visibleIds.forEach(id => selectedIds.delete(id));
+            }
+            renderVault();
+        }
+
+        function updateSelectedUI() {
+            document.getElementById('selected-count').innerText = `${selectedIds.size} selected`;
+            document.querySelectorAll('.entry-card').forEach(card => {
+                const id = card.dataset.id;
+                if (selectedIds.has(id)) card.classList.add('selected');
+                else card.classList.remove('selected');
+            });
+        }
+
+        function applyBulkCategory() {
+            const newCat = document.getElementById('bulk-cat-select').value;
+            if (!newCat) { alert("Please select a target category."); return; }
+            if (selectedIds.size === 0) { alert("No entries selected."); return; }
+
+            vaultEntries.forEach(entry => {
+                if (selectedIds.has(entry.id)) entry.category = newCat;
+            });
+
+            localStorage.setItem('garrettBrainstormVault', JSON.stringify(vaultEntries));
+            selectedIds.clear();
+            document.getElementById('select-all-cb').checked = false;
+            renderVault();
+        }
+
+        function bulkDelete() {
+            if (selectedIds.size === 0) { alert("No entries selected."); return; }
+            if (confirm(`Permanently delete ${selectedIds.size} selected entries?`)) {
+                vaultEntries = vaultEntries.filter(e => !selectedIds.has(e.id));
+                selectedIds.clear();
+                document.getElementById('select-all-cb').checked = false;
+                localStorage.setItem('garrettBrainstormVault', JSON.stringify(vaultEntries));
+                renderVault();
+            }
+        }
+
+        function getCurrentlyVisibleEntries() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const filterCat = document.getElementById('filter-category').value;
+
+            return vaultEntries.filter(entry => {
+                const matchesSearch = entry.title.toLowerCase().includes(searchTerm) || entry.content.toLowerCase().includes(searchTerm);
+                const matchesFilter = filterCat === 'all' || entry.category === filterCat;
+                return matchesSearch && matchesFilter;
+            });
+        }
+
+        /* DEDICATED PDF EXPORT */
+        function openPdfModal() {
+            document.getElementById('pdf-modal').style.display = 'flex';
+        }
+
+        function closePdfModal() {
+            document.getElementById('pdf-modal').style.display = 'none';
+        }
+
+        function executePdfExport() {
+            const scope = document.getElementById('pdf-scope').value;
+            const docTitle = document.getElementById('pdf-doc-title').value.trim() || "Garrett's Brainstorming Vault — Master Index";
+            
+            let entriesToExport = [];
+            if (scope === 'all') { entriesToExport = [...vaultEntries]; } 
+            else if (scope === 'filtered') { entriesToExport = getCurrentlyVisibleEntries(); } 
+            else if (scope === 'selected') {
+                if (selectedIds.size === 0) { alert("No entries selected! Please check items first."); return; }
+                entriesToExport = vaultEntries.filter(e => selectedIds.has(e.id));
+            }
+
+            if (entriesToExport.length === 0) { alert("No entries found to export."); return; }
+
+            closePdfModal();
+
+            // Populate the dedicated hidden print container
+            const printContainer = document.getElementById('print-container');
+            
+            let htmlString = `<div class="print-header">
+                <h1>${docTitle}</h1>
+                <p>Generated Export: ${new Date().toLocaleString()} | Scope: ${scope.toUpperCase()}</p>
+            </div>`;
+
+            entriesToExport.forEach(entry => {
+                const catObj = categories.find(c => c.id === entry.category) || { name: 'General', color: '#616161' };
+                htmlString += `
+                    <div class="print-card">
+                        <div class="print-title">${entry.title}</div>
+                        <div class="print-meta">Category: ${catObj.name} &nbsp;|&nbsp; Logged: ${entry.date}</div>
+                        <div class="print-content">${parseMarkdown(entry.content)}</div>
+                    </div>
+                `;
+            });
+
+            printContainer.innerHTML = htmlString;
+            
+            // Trigger print dialog. The CSS @media print handles showing this container and hiding the rest of the UI.
+            window.print();
+            
+            // Clean up the DOM after printing is triggered
+            setTimeout(() => {
+                printContainer.innerHTML = '';
+            }, 2000);
+        }
+
+        function exportText() {
+            if (vaultEntries.length === 0) { alert("The vault is empty. Nothing to export!"); return; }
+
+            let fileContent = "=================================================\n   GARRETT's BRAINSTORMING VAULT EXPORT\n   Generated: " + new Date().toLocaleString() + "\n=================================================\n\n";
+
+            vaultEntries.forEach(entry => {
+                const catObj = categories.find(c => c.id === entry.category) || { name: 'GENERAL' };
+                fileContent += `TITLE: ${entry.title}${entry.pinned ? " [PINNED]" : ""}\nCATEGORY: ${catObj.name.toUpperCase()}\nDATE: ${entry.date}\n-------------------------------------------------\n${entry.content}\n\n=================================================\n\n`;
+            });
+
+            const blob = new Blob([fileContent], { type: 'text/plain' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Garretts_Vault_Export_${new Date().toISOString().split('T')[0]}.txt`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        function exportJSONBackup() {
+            const backupData = { version: 3.0, date: new Date().toISOString(), categories: categories, entries: vaultEntries };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", `Brainstorm_Vault_Backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(dl);
+            dl.click();
+            dl.remove();
+        }
+
+        function importJSONBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.entries && Array.isArray(parsed.entries)) {
+                        if (confirm("Restoring this JSON backup will overwrite your current vault entries. Proceed?")) {
+                            if (parsed.categories && Array.isArray(parsed.categories)) {
+                                categories = parsed.categories;
+                                saveCategories();
+                            }
+                            vaultEntries = parsed.entries;
+                            // Ensure backward compatibility
+                            vaultEntries.forEach(item => {
+                                if(!item.category) item.category = categories[0].id;
+                            });
+                            localStorage.setItem('garrettBrainstormVault', JSON.stringify(vaultEntries));
+                            renderVault();
+                            alert("Vault successfully restored from backup!");
+                        }
+                    } else { alert("Invalid backup file structure."); }
+                } catch (err) { alert("Error parsing JSON file: " + err.message); }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function renderVault() {
+            const container = document.getElementById('vault-container');
+            const visibleEntries = getCurrentlyVisibleEntries();
+
+            container.innerHTML = '';
+            
+            const sortedEntries = [...visibleEntries].sort((a, b) => {
+                if (a.pinned === b.pinned) return 0;
+                return a.pinned ? -1 : 1;
+            });
+
+            sortedEntries.forEach(entry => {
+                const catObj = categories.find(c => c.id === entry.category) || { name: 'General', color: '#616161' };
+                const isSelected = selectedIds.has(entry.id);
+
+                const card = document.createElement('div');
+                card.className = `entry-card ${entry.pinned ? 'is-pinned' : ''} ${isSelected ? 'selected' : ''}`;
+                card.dataset.id = entry.id;
+                card.innerHTML = `
+                    <div class="entry-header">
+                        <div class="entry-title-group">
+                            <input type="checkbox" style="width:auto;" ${isSelected ? 'checked' : ''} onchange="toggleSelectEntry('${entry.id}', this.checked)">
+                            <div>
+                                <h4 class="entry-title">${entry.title}</h4>
+                                <span class="tag" style="background:${catObj.color}">${catObj.name}</span>
+                            </div>
+                        </div>
+                        <span class="entry-date">${entry.date}</span>
+                    </div>
+                    <div class="entry-content">${parseMarkdown(entry.content)}</div>
+                    <div class="card-actions">
+                        <button class="action-btn ${entry.pinned ? 'pinned' : ''}" onclick="togglePin('${entry.id}')">${entry.pinned ? '★ Pinned' : '☆ Pin'}</button>
+                        <button class="action-btn" onclick="editIdea('${entry.id}')">Edit</button>
+                        <button class="action-btn danger" onclick="deleteIdea('${entry.id}')">Delete</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            document.getElementById('vault-count').innerText = `${visibleEntries.length} entries`;
+            updateSelectedUI();
+
+            if (visibleEntries.length === 0) {
+                container.innerHTML = '<p style="color: #aaa; font-style: italic; padding: 10px;">No ideas found matching search criteria.</p>';
+            }
+        }
+    </script>
+</body>
+</html>

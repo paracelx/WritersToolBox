@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garrett's Custom Serial Production Board</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background-color: #1e1e1e; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
+        h2 { margin-top: 0; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: baseline; }
+        .credit-line { font-size: 0.85em; color: #888; padding-bottom: 15px; margin-bottom: 20px; border-bottom: 1px solid #444; }
+        .credit-line a { color: #7289da; text-decoration: none; }
+        
+        .controls-container { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; background: #252525; padding: 15px; border-radius: 8px; border: 1px solid #333; align-items: center; }
+        .control-group { display: flex; gap: 10px; align-items: center; }
+        .control-divider { width: 2px; background: #444; margin: 0 5px; height: 25px; }
+        
+        input[type="text"] { padding: 10px; background: #1a1a1a; border: 1px solid #555; color: #fff; border-radius: 4px; font-size: 14px; width: 200px; }
+        input[type="file"] { display: none; }
+        
+        button { background-color: #7289da; color: white; border: none; padding: 10px 15px; font-size: 14px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background-color: #5b6eae; }
+        
+        button.secondary { background-color: #4CAF50; }
+        button.secondary:hover { background-color: #388E3C; }
+
+        button.tertiary { background-color: #00796b; }
+        button.tertiary:hover { background-color: #004d40; }
+        
+        button.danger { background-color: #d32f2f; margin-left: auto; }
+        button.danger:hover { background-color: #b71c1c; }
+
+        /* Board & Columns */
+        .board { display: flex; gap: 15px; flex-grow: 1; overflow-x: auto; padding-bottom: 10px; }
+        .column { background: #252525; border: 1px solid #333; border-radius: 8px; min-width: 280px; width: 280px; display: flex; flex-direction: column; }
+        .column-header { padding: 15px; font-weight: bold; font-size: 1.05em; border-bottom: 2px solid #7289da; display: flex; justify-content: space-between; align-items: center; }
+        .card-count { font-size: 0.8em; background: #444; padding: 2px 8px; border-radius: 12px; color: #ccc; margin-left: 5px; }
+        .column-content { padding: 15px; flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; min-height: 100px; }
+        
+        /* Draggable Cards */
+        .card { background: #333; border: 1px solid #444; border-radius: 6px; padding: 12px; cursor: grab; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: transform 0.1s, background 0.2s; position: relative; }
+        .card:hover { background: #3a3a3a; transform: translateY(-2px); }
+        .card:active { cursor: grabbing; }
+        .card.dragging { opacity: 0.5; }
+        .card-title { font-weight: bold; margin-bottom: 5px; font-size: 1.05em; color: #fff; padding-right: 20px; }
+        .card-date { font-size: 0.75em; color: #888; }
+        
+        /* Delete Buttons */
+        .delete-btn { position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: #888; padding: 0; font-size: 14px; cursor: pointer; }
+        .delete-btn:hover { color: #f44336; background: transparent; }
+        
+        .delete-col-btn { background: transparent; border: none; color: #666; padding: 0; font-size: 16px; cursor: pointer; transition: 0.2s; }
+        .delete-col-btn:hover { color: #f44336; background: transparent; }
+
+        /* Drag over effect */
+        .column-content.drag-over { background: #2a2a2a; border: 2px dashed #7289da; border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+    <h2>Garrett's Custom Production Board</h2>
+    <div class="credit-line">
+        Created by Danny Garrett | <a href="mailto:dwgarrett.creative@outlook.com">dwgarrett.creative@outlook.com</a>
+    </div>
+
+    <div class="controls-container">
+        <div class="control-group">
+            <input type="text" id="new-chapter-input" placeholder="e.g., Chapter 6..." onkeypress="handleChapterEnter(event)">
+            <button onclick="addCard()">Add Chapter</button>
+        </div>
+        
+        <div class="control-divider"></div>
+        
+        <div class="control-group">
+            <input type="text" id="new-col-input" placeholder="e.g., Beta Reading..." onkeypress="handleColEnter(event)">
+            <button class="secondary" onclick="addColumn()">Add New Column</button>
+        </div>
+
+        <div class="control-divider"></div>
+
+        <!-- Backup & Restore Controls -->
+        <div class="control-group">
+            <button class="tertiary" onclick="exportBackup()">Export Backup</button>
+            <button class="tertiary" onclick="document.getElementById('import-file').click()" style="background-color: #006064;">Restore Backup</button>
+            <input type="file" id="import-file" accept=".json" onchange="importBackup(event)">
+        </div>
+
+        <button class="danger" onclick="clearBoard()">Wipe All Data</button>
+    </div>
+
+    <div class="board" id="board">
+        <!-- Columns will generate here dynamically -->
+    </div>
+
+    <script>
+        // Default startup columns if memory is empty
+        const defaultColumns = [
+            { id: 'col-outlined', title: 'Outlined' },
+            { id: 'col-drafted', title: 'Drafted' },
+            { id: 'col-diagnostics', title: 'Diagnostics Run' },
+            { id: 'col-copyrighted', title: 'eCO Copyrighted' },
+            { id: 'col-published', title: 'Royal Road' }
+        ];
+
+        let columns = [];
+        let tasks = [];
+        let draggedCardId = null;
+
+        // --- Initialization ---
+        window.onload = function() {
+            loadFromStorage();
+        };
+
+        // --- Core Functions: Columns ---
+        function addColumn() {
+            const input = document.getElementById('new-col-input');
+            const title = input.value.trim();
+            if (title === '') return;
+
+            const newCol = {
+                id: 'col-' + Date.now(),
+                title: title
+            };
+
+            columns.push(newCol);
+            saveToStorage();
+            renderBoard();
+            input.value = '';
+        }
+
+        function deleteColumn(colId) {
+            if (confirm("Delete this column? ANY chapters inside it will also be deleted permanently.")) {
+                columns = columns.filter(c => c.id !== colId);
+                tasks = tasks.filter(t => t.col !== colId); // Remove associated tasks
+                saveToStorage();
+                renderBoard();
+            }
+        }
+
+        // --- Core Functions: Cards ---
+        function addCard() {
+            const input = document.getElementById('new-chapter-input');
+            const title = input.value.trim();
+            if (title === '') return;
+            
+            if (columns.length === 0) {
+                alert("You need to add at least one column before adding a chapter!");
+                return;
+            }
+
+            const newCard = {
+                id: 'card-' + Date.now(),
+                title: title,
+                date: new Date().toLocaleDateString(),
+                col: columns[0].id // Drops into the first column by default
+            };
+
+            tasks.push(newCard);
+            saveToStorage();
+            renderBoard();
+            input.value = '';
+        }
+
+        function deleteCard(id) {
+            if (confirm("Delete this chapter card?")) {
+                tasks = tasks.filter(task => task.id !== id);
+                saveToStorage();
+                renderBoard();
+            }
+        }
+
+        function clearBoard() {
+            if (confirm("WARNING: This will permanently delete ALL columns and chapter cards. Are you sure?")) {
+                columns = JSON.parse(JSON.stringify(defaultColumns)); // Reset to defaults
+                tasks = [];
+                saveToStorage();
+                renderBoard();
+            }
+        }
+
+        // --- Backup & Restore Functions ---
+        function exportBackup() {
+            const backupData = {
+                version: 1,
+                date: new Date().toISOString(),
+                columns: columns,
+                tasks: tasks
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            
+            const dateStr = new Date().toISOString().split('T')[0];
+            downloadAnchor.setAttribute("download", `Lore_Ledger_Backup_${dateStr}.json`);
+            
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.columns && parsed.tasks) {
+                        if (confirm("Restoring this backup will overwrite your current board state. Proceed?")) {
+                            columns = parsed.columns;
+                            tasks = parsed.tasks;
+                            saveToStorage();
+                            renderBoard();
+                            alert("Board successfully restored from backup!");
+                        }
+                    } else {
+                        alert("Invalid backup file structure.");
+                    }
+                } catch (err) {
+                    alert("Error parsing JSON file: " + err.message);
+                }
+                // Reset file input so the same file can be selected again if needed
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function handleChapterEnter(e) { if (e.key === 'Enter') addCard(); }
+        function handleColEnter(e) { if (e.key === 'Enter') addColumn(); }
+
+        // --- Rendering & Drag Logic ---
+        function renderBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = ''; // Clear DOM
+
+            // Keep track of counts dynamically
+            const counts = {};
+
+            // 1. Render Columns
+            columns.forEach(col => {
+                counts[col.id] = 0; // Initialize count
+                
+                const colEl = document.createElement('div');
+                colEl.className = 'column';
+                colEl.innerHTML = `
+                    <div class="column-header">
+                        <div>${col.title} <span class="card-count" id="count-${col.id}">0</span></div>
+                        <button class="delete-col-btn" onclick="deleteColumn('${col.id}')" title="Delete Column">✕</button>
+                    </div>
+                    <div class="column-content" data-col="${col.id}"></div>
+                `;
+                board.appendChild(colEl);
+            });
+
+            // 2. Attach Drop Events to new Column Contents
+            document.querySelectorAll('.column-content').forEach(colContent => {
+                colContent.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    colContent.classList.add('drag-over');
+                });
+
+                colContent.addEventListener('dragleave', e => {
+                    colContent.classList.remove('drag-over');
+                });
+
+                colContent.addEventListener('drop', e => {
+                    e.preventDefault();
+                    colContent.classList.remove('drag-over');
+                    
+                    const targetColId = colContent.getAttribute('data-col');
+                    if (draggedCardId && targetColId) {
+                        const taskIndex = tasks.findIndex(t => t.id === draggedCardId);
+                        if (taskIndex > -1) {
+                            tasks[taskIndex].col = targetColId;
+                            saveToStorage();
+                            renderBoard();
+                        }
+                    }
+                });
+            });
+
+            // 3. Render Cards
+            tasks.forEach(task => {
+                const targetColDOM = document.querySelector(`.column-content[data-col="${task.col}"]`);
+                if (!targetColDOM) return; // If column was deleted but task stuck somehow, ignore it
+
+                counts[task.col]++;
+
+                const cardEl = document.createElement('div');
+                cardEl.className = 'card';
+                cardEl.draggable = true;
+                cardEl.id = task.id;
+                
+                cardEl.innerHTML = `
+                    <button class="delete-btn" onclick="deleteCard('${task.id}')" title="Delete Card">✕</button>
+                    <div class="card-title">${task.title}</div>
+                    <div class="card-date">Added: ${task.date}</div>
+                `;
+
+                // Drag event listeners
+                cardEl.addEventListener('dragstart', () => {
+                    draggedCardId = task.id;
+                    setTimeout(() => cardEl.classList.add('dragging'), 0);
+                });
+
+                cardEl.addEventListener('dragend', () => {
+                    cardEl.classList.remove('dragging');
+                    draggedCardId = null;
+                });
+
+                targetColDOM.appendChild(cardEl);
+            });
+
+            // 4. Update Header Counts
+            for (const [colId, count] of Object.entries(counts)) {
+                const countBadge = document.getElementById(`count-${colId}`);
+                if (countBadge) countBadge.innerText = count;
+            }
+        }
+
+        // --- Storage Logic ---
+        function saveToStorage() {
+            localStorage.setItem('garrettKanbanTasks', JSON.stringify(tasks));
+            localStorage.setItem('garrettKanbanCols', JSON.stringify(columns));
+        }
+
+        function loadFromStorage() {
+            const storedTasks = localStorage.getItem('garrettKanbanTasks');
+            const storedCols = localStorage.getItem('garrettKanbanCols');
+            
+            if (storedCols) {
+                try { columns = JSON.parse(storedCols); } 
+                catch(e) { columns = JSON.parse(JSON.stringify(defaultColumns)); }
+            } else {
+                columns = JSON.parse(JSON.stringify(defaultColumns));
+            }
+
+            if (storedTasks) {
+                try { tasks = JSON.parse(storedTasks); } 
+                catch(e) { tasks = []; }
+            } else {
+                tasks = [];
+            }
+            
+            renderBoard();
+        }
+    </script>
+</body>
+</html>
