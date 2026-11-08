@@ -101,7 +101,7 @@
         <div class="flex-row">
             <div style="flex: 2;">
                 <label>Novel / Project Name</label>
-                <input type="text" id="project-title" value="The Eight-Legged Covenant" onchange="saveData()">
+                <input type="text" id="project-title" value="Untitled" onchange="saveData()">
             </div>
             <div style="flex: 1;">
                 <label>Filter Swimlane</label>
@@ -202,7 +202,7 @@
             if (saved) {
                 try { chronoData = JSON.parse(saved); } catch(e) {}
             }
-            document.getElementById('project-title').value = chronoData.project || "The Eight-Legged Covenant";
+            document.getElementById('project-title').value = chronoData.project || "Untitled";
             updateSwimlaneFilter();
             renderTimeline();
         }
